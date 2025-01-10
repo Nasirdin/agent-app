@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { TextInput } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
-import axios from "axios"; // Не забывайте импортировать axios
-import Toast from "react-native-toast-message"; // Импортируем Toast
+import axios from "axios";
+import Toast from "react-native-toast-message";
 
 const Login = ({ navigation }) => {
   const [data, setData] = useState({
@@ -13,8 +13,6 @@ const Login = ({ navigation }) => {
     password: "",
     confirmPassword: "",
     avatar: "",
-    savedItems: [{ itemId: 1, quantity: 2 }],
-    deliveryAddresses: [{ address: "123 Main St, City" }],
   });
 
   const handleInputChange = (name, value) => {
@@ -38,11 +36,11 @@ const Login = ({ navigation }) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:3000/api/register",
+        "http://localhost:3000/api/customers/register",
         data
       );
       console.log(response);
-      navigation.navigate("Login"); // Перенаправление на экран входа после успешной регистрации
+      navigation.navigate("Login");
     } catch (error) {
       console.error("Error during registration:", error);
       Toast.show({

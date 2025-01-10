@@ -1,19 +1,20 @@
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
-// ---- Components ---- //
+import { getToken } from "../helpers";
 
 const Loading = ({ navigation }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const isAuthenticated = false;
-      if (isAuthenticated) {
-        navigation.replace("Home");
-      } else {
-        navigation.replace("Login");
-      }
-    }, 2000);
+    const checkToken = async () => {
+      const token = await getToken();
 
-    return () => clearTimeout(timer);
+      if (token) {
+        navigation.replace("Main"); // Перейти на главный экран
+      } else {
+        navigation.replace("Login"); // Перейти на экран входа
+      }
+    };
+
+    checkToken();
   }, [navigation]);
 
   return (

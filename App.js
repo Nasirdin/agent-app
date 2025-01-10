@@ -19,7 +19,7 @@ const Stack = createStackNavigator();
 export default function App() {
   return (
     <Provider store={store}>
-      <NavigationContainer style={styles.container}>
+      <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Loading" component={Loading} />
           <Stack.Screen name="Login" component={Login} />
@@ -34,11 +34,3 @@ export default function App() {
     </Provider>
   );
 }
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#fff",
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
