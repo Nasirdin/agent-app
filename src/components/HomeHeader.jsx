@@ -2,8 +2,14 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
 // ---- Components ---- //
 import { Ionicons } from "@expo/vector-icons";
+import { useSelector } from "react-redux";
 
 const HomeHeader = ({ navigation }) => {
+  const user = useSelector((state) => state.user.user);
+
+  if (!user) {
+    return null;
+  }
   return (
     <View style={styles.header}>
       <TouchableOpacity
@@ -16,7 +22,7 @@ const HomeHeader = ({ navigation }) => {
           }}
           style={styles.headerProfilePhoto}
         />
-        <Text style={styles.headerUsername}>Насирдин</Text>
+        <Text style={styles.headerUsername}>{user.firstName}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.headerNotificationContainer}

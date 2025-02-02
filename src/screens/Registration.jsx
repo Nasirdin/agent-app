@@ -4,12 +4,12 @@ import { TextInput } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
 import Toast from "react-native-toast-message";
-
+import { API_URL } from "@env";
 const Login = ({ navigation }) => {
   const [data, setData] = useState({
     firstName: "",
     lastName: "",
-    phoneNumber: null,
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
     avatar: "",
@@ -23,7 +23,12 @@ const Login = ({ navigation }) => {
   };
 
   const handleRegister = async () => {
-    if (data.password !== data.confirmPassword) {
+    const formattedData = {
+      ...data,
+      phoneNumber: Number(data.phoneNumber),
+    };
+
+    if (formattedData.password !== formattedData.confirmPassword) {
       Toast.show({
         type: "error",
         position: "top",
@@ -36,10 +41,9 @@ const Login = ({ navigation }) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:3000/api/customers/register",
-        data
+        API_URL + "/users/register",
+        formattedData
       );
-      console.log(response);
       navigation.navigate("Login");
     } catch (error) {
       console.error("Error during registration:", error);

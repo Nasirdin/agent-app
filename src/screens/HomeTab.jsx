@@ -5,18 +5,17 @@ import { Ionicons } from "@expo/vector-icons";
 
 // ---- Components ---- //
 import Home from "./Home";
-import Catalog from "./Catalog";
+import AllProduct from "./AllProducts";
 import Favorite from "./Favorite";
 import MyOrders from "./MyOrders";
 import Cart from "./Cart";
 
 const Tab = createBottomTabNavigator();
 
-// Настройка иконок
 const getTabBarIcon = (route, color, size) => {
   const icons = {
     Home: "home",
-    Catalog: "list",
+    Product: "list",
     Favorite: "heart",
     Cart: "cart",
     MyOrders: "receipt",
@@ -28,7 +27,7 @@ const getTabBarIcon = (route, color, size) => {
 // Массив экранов
 const screens = [
   { name: "Home", component: Home, label: "Главная" },
-  { name: "Catalog", component: Catalog, label: "Каталог" },
+  { name: "AllProduct", component: AllProduct, label: "Товары" },
   { name: "Favorite", component: Favorite, label: "Избранное" },
   { name: "Cart", component: Cart, label: "Корзина" },
   { name: "MyOrders", component: MyOrders, label: "Заказы" },

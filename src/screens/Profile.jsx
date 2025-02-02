@@ -9,6 +9,8 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { clearTokens } from "../helpers";
+import { useSelector } from "react-redux";
 
 const SectionButton = ({ text, onPress, icon }) => (
   <TouchableOpacity style={styles.sectionButton} onPress={onPress}>
@@ -25,9 +27,15 @@ const TabButton = ({ text, onPress }) => (
 
 const Profile = ({ navigation }) => {
   const [photo, setPhoto] = useState("https://via.placeholder.com/100");
+  const user = useSelector((state) => state.user.user);
 
   const handlePhotoChange = () => {
     setPhoto("https://via.placeholder.com/100?text=New+Photo");
+  };
+
+  const exit = () => {
+    clearTokens();
+    navigation.navigate("Login");
   };
 
   return (
@@ -37,7 +45,9 @@ const Profile = ({ navigation }) => {
           <TouchableOpacity onPress={handlePhotoChange}>
             <Image source={{ uri: photo }} style={styles.profileImage} />
           </TouchableOpacity>
-          <Text style={styles.name}>Насирдин Жапаркулов</Text>
+          <Text style={styles.name}>
+            {user.firstName} {user.lastName}
+          </Text>
         </View>
 
         <View style={styles.dataSections}>
@@ -66,10 +76,7 @@ const Profile = ({ navigation }) => {
           <TabButton text="О приложении" onPress={() => {}} />
         </View>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Login")}
-          style={styles.logoutButton}
-        >
+        <TouchableOpacity onPress={() => exit()} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Выйти</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -80,7 +87,7 @@ const Profile = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
   },
   scrollView: {
     padding: 20,

@@ -117,7 +117,7 @@ const MyOrders = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
   },
   container: {
     flex: 1,

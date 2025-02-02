@@ -1,20 +1,25 @@
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { isTokenExpired, refreshAccessToken } from "../auth";
 import { getToken } from "../helpers";
 
 const Loading = ({ navigation }) => {
-  useEffect(() => {
-    const checkToken = async () => {
-      const token = await getToken();
-
-      if (token) {
-        navigation.replace("Main"); // Перейти на главный экран
+  const checkAndRefreshToken = async () => {
+    const token = await getToken();
+    if (token && !isTokenExpired(token)) {
+      navigation.replace("Main");
+    } else {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        navigation.replace("Main");
       } else {
-        navigation.replace("Login"); // Перейти на экран входа
+        navigation.replace("Login");
       }
-    };
+    }
+  };
 
-    checkToken();
+  useEffect(() => {
+    checkAndRefreshToken();
   }, [navigation]);
 
   return (

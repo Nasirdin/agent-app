@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Discount from "../components/Discount";
@@ -13,14 +14,56 @@ import News from "../components/News";
 import HomeHeader from "../components/HomeHeader";
 import BestOffers from "../components/BestOffers";
 import Products from "../components/Products";
+import { useDispatch, useSelector } from "react-redux";
+import { getToken } from "../helpers";
+import axios from "axios";
+import { setUserData } from "../store/slices/userSlice";
+import { API_URL } from "@env";
+import { fetchProducts } from "../store/slices/productSlice";
 
 const Home = ({ navigation }) => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const dispatch = useDispatch();
+  const fetchUserData = async () => {
+    const token = await getToken();
+    if (!token) {
+      return;
+    }
+    try {
+      const response = await axios.get(API_URL + `/users/current-user`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = response.data;
+      dispatch(setUserData(data));
+    } catch (error) {
+      console.error("Ошибка при запросе: ", error);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchUserData();
+    dispatch(fetchProducts());
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    fetchUserData();
+    dispatch(fetchProducts());
+  }, [dispatch]);
+
   return (
     <SafeAreaView style={styles.container}>
       <HomeHeader navigation={navigation} />
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         <News />
         <View style={styles.buttonsContainer}>
@@ -52,7 +95,7 @@ const Home = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
   },
   scrollContainer: {
     paddingHorizontal: 10,

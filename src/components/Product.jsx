@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
-import Toast from "react-native-toast-message"; // Импортируем Toast
+import Toast from "react-native-toast-message";
 import Products from "./Products";
 
 const screenWidth = Dimensions.get("window").width;
@@ -51,7 +51,7 @@ const Product = ({ navigation }) => {
   };
 
   const product = useSelector((state) => state.product.activeProduct);
-  const totalPrice = parseFloat(product.price.replace(" сом", "")) * quantity;
+  const totalPrice = parseFloat(product.price) * quantity;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -61,7 +61,7 @@ const Product = ({ navigation }) => {
           showsHorizontalScrollIndicator={false}
           style={styles.imageScroll}
         >
-          {product.image.map((image, index) => (
+          {product.images.map((image, index) => (
             <Image key={index} source={{ uri: image }} style={styles.image} />
           ))}
         </ScrollView>
@@ -71,7 +71,7 @@ const Product = ({ navigation }) => {
           <View style={styles.actions}>
             <TouchableOpacity onPress={handleSave}>
               <Ionicons
-                name={saved ? "bookmark" : "bookmark-outline"}
+                name={saved ? "heart" : "heart-outline"}
                 size={30}
                 color={"#008bd9"}
               />
@@ -79,7 +79,7 @@ const Product = ({ navigation }) => {
           </View>
         </View>
 
-        <Text style={styles.title}>{product.title}</Text>
+        <Text style={styles.title}>{product.name}</Text>
 
         <View style={styles.priceContainer}>
           <Text style={styles.price}>{product.price} сом</Text>
@@ -114,6 +114,10 @@ const Product = ({ navigation }) => {
           <Text style={styles.minOrderText}>Минимальный заказ: 10 шт.</Text>
         </View>
 
+        <Text style={styles.category}>
+          Категория:{" "}
+          <Text style={styles.categoryName}>{product.category.name}</Text>
+        </Text>
         <Text style={styles.description}>{product.description}</Text>
 
         <TouchableOpacity
@@ -128,7 +132,7 @@ const Product = ({ navigation }) => {
               style={styles.manufacturerLogo}
             />
             <View>
-              <Text style={styles.companyName}>{product.manufacturer}</Text>
+              <Text style={styles.companyName}>{product.owner.name}</Text>
               <Text style={styles.ownerName}>
                 Входит в топ 5 лучших на Agent
               </Text>
@@ -186,7 +190,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 10,
   },
   price: {
     fontSize: 28,
@@ -197,7 +201,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 10,
   },
   totalPrice: {
     fontSize: 20,
@@ -209,6 +213,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 20,
+    backgroundColor: "#e5e5e5",
+    borderRadius: 5,
   },
   quantityButton: {
     backgroundColor: "#008bd9",
@@ -218,10 +224,14 @@ const styles = StyleSheet.create({
   quantityButtonText: {
     color: "#fff",
     fontSize: 20,
+    width: 70,
+    textAlign: "center",
   },
   quantityText: {
     fontSize: 18,
     fontWeight: "600",
+    width: 50,
+    textAlign: "center",
   },
   buyButton: {
     backgroundColor: "#008bd9",
@@ -264,8 +274,18 @@ const styles = StyleSheet.create({
     marginRight: 15,
     backgroundColor: "#008bd935",
   },
+  category: {
+    marginBottom: 15,
+    fontSize: 16,
+    fontWeight: 500,
+    color: "#666",
+  },
+  categoryName: {
+    color: "#000",
+  },
   description: {
     fontSize: 16,
+    fontWeight: 500,
     marginBottom: 15,
     backgroundColor: "#99999915",
     padding: 10,

@@ -3,22 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { TextInput } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
-import * as SecureStore from "expo-secure-store";
+import { saveTokens } from "../helpers";
+import { API_URL } from "@env";
 
 const Login = ({ navigation }) => {
-  const url = "http://192.168.0.103:3000/api";
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const saveToken = async (accessToken) => {
-    try {
-      await SecureStore.setItemAsync("access_token", accessToken);
-    } catch (error) {
-      console.error("Error saving token", error);
-    }
-  };
-
   const handleLogin = async () => {
     if (!phoneNumber || !password) {
       Alert.alert("Ошибка", "Пожалуйста, заполните все поля");
@@ -28,20 +19,19 @@ const Login = ({ navigation }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${url}/customers/login`, {
+      const response = await axios.post(API_URL + `/users/login`, {
         phoneNumber,
         password,
       });
-      const { accessToken, customer } = response.data;
-      saveToken(accessToken);
 
-      Alert.alert("Успех", `Добро пожаловать, ${customer.firstName}!`);
+      const { accessToken, refreshToken } = response.data;
+
+      saveTokens(accessToken, refreshToken);
       navigation.navigate("Main");
     } catch (error) {
-      console.error("Login Error:", error); 
+      console.error("Login Error:", error);
       if (error.response) {
-        // Ошибка на уровне ответа от сервера
-        console.error("Response error:", error.response); // Логируем сам ответ сервера
+        console.error("Response error:", error.response);
         if (error.response.data && error.response.data.message) {
           Alert.alert("Ошибка", error.response.data.message);
         } else {
@@ -51,12 +41,10 @@ const Login = ({ navigation }) => {
           );
         }
       } else if (error.request) {
-        // Ошибка при отправке запроса
-        console.error("Request error:", error.request); // Логируем запрос
+        console.error("Request error:", error.request);
         Alert.alert("Ошибка", "Ошибка сети. Проверьте подключение.");
       } else {
-        // Любая другая ошибка
-        console.error("Unexpected error:", error.message); // Логируем другие ошибки
+        console.error("Unexpected error:", error.message);
         Alert.alert("Ошибка", "Не удалось выполнить вход. Попробуйте позже.");
       }
     } finally {

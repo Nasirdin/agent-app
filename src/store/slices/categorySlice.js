@@ -2,13 +2,11 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { API_URL } from "@env";
 
-export const fetchProducts = createAsyncThunk(
-  "product/fetchProducts",
-  async (categoryId, { rejectWithValue }) => {
+export const fetchCategories = createAsyncThunk(
+  "product/fetchCategories",
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/products`, {
-        params: { category: categoryId },
-      });
+      const response = await axios.get(`${API_URL}/categories`);
       return response.data;
     } catch (error) {
       console.error("Ошибка при запросе:", error);
@@ -17,10 +15,10 @@ export const fetchProducts = createAsyncThunk(
   }
 );
 
-export const productSlice = createSlice({
-  name: "product",
+export const categorySlice = createSlice({
+  name: "category",
   initialState: {
-    products: [],
+    categories: [],
     activeProduct: null,
     loading: false,
     error: null,
@@ -32,21 +30,21 @@ export const productSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchProducts.pending, (state) => {
+      .addCase(fetchCategories.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchProducts.fulfilled, (state, action) => {
+      .addCase(fetchCategories.fulfilled, (state, action) => {
         state.loading = false;
-        state.products = action.payload.products;
+        state.categories = action.payload.categories;
       })
-      .addCase(fetchProducts.rejected, (state, action) => {
+      .addCase(fetchCategories.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
   },
 });
 
-export const { setActiveProduct } = productSlice.actions;
+export const {} = categorySlice.actions;
 
-export default productSlice.reducer;
+export default categorySlice.reducer;
