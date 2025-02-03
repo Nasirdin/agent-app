@@ -3,7 +3,7 @@ import { Text, StyleSheet, SafeAreaView, View } from "react-native";
 import Products from "../components/Products";
 import { Ionicons } from "@expo/vector-icons";
 
-const Favorite = () => {
+const Favorite = ({ navigation }) => {
   const savedItems = 1;
 
   return (
@@ -11,7 +11,7 @@ const Favorite = () => {
       <View style={styles.wrapper}>
         <Text style={styles.title}>Избранное</Text>
         {savedItems > 0 ? (
-          <Products />
+          <Products navigation={navigation} />
         ) : (
           <Text style={styles.emptyText}>Нет сохранённых товаров</Text>
         )}

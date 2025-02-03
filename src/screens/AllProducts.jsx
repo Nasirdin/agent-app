@@ -16,7 +16,7 @@ import Products from "../components/Products";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { fetchCategories } from "../store/slices/categorySlice";
 
-const AllProduct = ({ navigation }) => {
+const AllProducts = ({ navigation }) => {
   const categories = useSelector((state) => state.category.categories);
   const [searchText, setSearchText] = useState("");
 
@@ -97,8 +97,8 @@ const AllProduct = ({ navigation }) => {
         <TextInput
           style={styles.productsSearch}
           placeholder="Поиск"
-          value={searchText}
-          onChangeText={(text) => setSearchText(text)}
+          // value={searchText}
+          // onChangeText={(text) => setSearchText(text)}
         />
         <TouchableOpacity style={styles.filter}>
           <Ionicons name="filter" size={24} color={"#008bd9"} />
@@ -217,4 +217,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AllProduct;
+export default AllProducts;

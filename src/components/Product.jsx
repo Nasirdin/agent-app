@@ -56,6 +56,12 @@ const Product = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.container}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#008bd9" />
+        </TouchableOpacity>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -73,7 +79,7 @@ const Product = ({ navigation }) => {
               <Ionicons
                 name={saved ? "heart" : "heart-outline"}
                 size={30}
-                color={"#008bd9"}
+                color={saved ? "red" : "#008bd9"}
               />
             </TouchableOpacity>
           </View>
@@ -302,6 +308,9 @@ const styles = StyleSheet.create({
   similarTitle: {
     fontSize: 20,
     fontWeight: "700",
+    marginBottom: 10,
+  },
+  backButton: {
     marginBottom: 10,
   },
 });

@@ -41,9 +41,20 @@ const Profile = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollView}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#008bd9" />
+        </TouchableOpacity>
         <View style={styles.profileHeader}>
           <TouchableOpacity onPress={handlePhotoChange}>
-            <Image source={{ uri: photo }} style={styles.profileImage} />
+            <Image
+              source={{
+                uri: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Flag_of_Kyrgyzstan.svg/1200px-Flag_of_Kyrgyzstan.svg.png",
+              }}
+              style={styles.profileImage}
+            />
           </TouchableOpacity>
           <Text style={styles.name}>
             {user.firstName} {user.lastName}
@@ -69,11 +80,21 @@ const Profile = ({ navigation }) => {
         </View>
 
         <View style={styles.tabs}>
-          <TabButton text="Конфиденциальность" onPress={() => {}} />
+          <TabButton
+            text="Политика конфиденциальности"
+            onPress={() => {
+              navigation.replace("PrivacyPolicy");
+            }}
+          />
           <TabButton text="Служба поддержки" onPress={() => {}} />
           <TabButton text="Настройки" onPress={() => {}} />
           <TabButton text="Правила и положения" onPress={() => {}} />
-          <TabButton text="О приложении" onPress={() => {}} />
+          <TabButton
+            text="О приложении"
+            onPress={() => {
+              navigation.replace("About");
+            }}
+          />
         </View>
 
         <TouchableOpacity onPress={() => exit()} style={styles.logoutButton}>

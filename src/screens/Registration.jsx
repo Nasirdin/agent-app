@@ -61,6 +61,12 @@ const Login = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.login}>
       <View style={styles.loginContainer}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#008bd9" />
+        </TouchableOpacity>
         <Text style={styles.loginTitle}>Регистрация</Text>
         <Text style={styles.loginSubtitle}>Создайте учетную запись</Text>
         <TextInput

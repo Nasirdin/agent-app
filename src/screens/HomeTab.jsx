@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 // ---- Components ---- //
 import Home from "./Home";
-import AllProduct from "./AllProducts";
+import AllProducts from "./AllProducts";
 import Favorite from "./Favorite";
 import MyOrders from "./MyOrders";
 import Cart from "./Cart";
@@ -15,7 +15,7 @@ const Tab = createBottomTabNavigator();
 const getTabBarIcon = (route, color, size) => {
   const icons = {
     Home: "home",
-    Product: "list",
+    AllProducts: "list",
     Favorite: "heart",
     Cart: "cart",
     MyOrders: "receipt",
@@ -27,7 +27,7 @@ const getTabBarIcon = (route, color, size) => {
 // Массив экранов
 const screens = [
   { name: "Home", component: Home, label: "Главная" },
-  { name: "AllProduct", component: AllProduct, label: "Товары" },
+  { name: "AllProducts", component: AllProducts, label: "Товары" },
   { name: "Favorite", component: Favorite, label: "Избранное" },
   { name: "Cart", component: Cart, label: "Корзина" },
   { name: "MyOrders", component: MyOrders, label: "Заказы" },

@@ -69,7 +69,7 @@ const Home = ({ navigation }) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity
             style={[styles.button, styles.blueButton]}
-            onPress={() => navigation.navigate("Catalog")}
+            onPress={() => navigation.navigate("AllProducts")}
           >
             <Ionicons name="grid" size={35} color="white" />
             <Text style={styles.buttonText}>Каталог товаров</Text>

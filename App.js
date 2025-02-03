@@ -13,6 +13,8 @@ import OrderHistory from "./src/screens/OrderHistory";
 import Product from "./src/components/Product";
 import { Provider } from "react-redux";
 import { store } from "./src/store/store";
+import AboutScreen from "./src/screens/AboutScreen";
+import PrivacyPolicyScreen from "./src/screens/PrivacyPolicy";
 
 const Stack = createStackNavigator();
 
@@ -29,6 +31,8 @@ export default function App() {
           <Stack.Screen name="Notification" component={Notification} />
           <Stack.Screen name="OrderHistory" component={OrderHistory} />
           <Stack.Screen name="Product" component={Product} />
+          <Stack.Screen name="About" component={AboutScreen} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </Provider>
