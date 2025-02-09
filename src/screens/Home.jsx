@@ -36,6 +36,7 @@ const Home = ({ navigation }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+
       const data = response.data;
       dispatch(setUserData(data));
     } catch (error) {

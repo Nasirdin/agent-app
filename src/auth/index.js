@@ -10,12 +10,11 @@ export const refreshAccessToken = async () => {
       const response = await axios.post(API_URL + "/users/refresh-token", {
         refreshToken,
       });
-
       const { accessToken } = response.data;
       await SecureStore.setItemAsync("access_token", accessToken);
       return accessToken;
     } catch (error) {
-      console.error("Ошибка обновления токена", error);
+      console.error("Ошибка запроса:", error.response?.data || error.message);
       return null;
     }
   }

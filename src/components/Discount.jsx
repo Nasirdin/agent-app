@@ -44,7 +44,7 @@ const DiscountCard = () => {
         style={styles.productCarousel}
       >
         {productData.map((product) => (
-          <View key={product.id} style={styles.productCard}>
+          <TouchableOpacity key={product.id} style={styles.productCard}>
             <Image
               source={{ uri: product.image }}
               style={styles.productImage}
@@ -55,10 +55,7 @@ const DiscountCard = () => {
               <Text style={styles.oldPrice}>{product.oldPrice} сом</Text>
               <Text style={styles.newPrice}>{product.newPrice} сом</Text>
             </View>
-            <TouchableOpacity style={styles.productButton}>
-              <Text style={styles.productButtonText}>Купить</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </View>

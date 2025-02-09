@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -9,77 +9,32 @@ import {
   Text,
   FlatList,
   RefreshControl,
+  Modal,
 } from "react-native";
 import { fetchProducts } from "../store/slices/productSlice";
 import { useDispatch, useSelector } from "react-redux";
 import Products from "../components/Products";
 import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { fetchCategories } from "../store/slices/categorySlice";
+import Filter from "../components/Filter"; // Импорт компонента фильтра
 
 const AllProducts = ({ navigation }) => {
   const categories = useSelector((state) => state.category.categories);
+  const products = useSelector((state) => state.product.products);
   const [searchText, setSearchText] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filterVisible, setFilterVisible] = useState(false);
 
   const dispatch = useDispatch();
+
   useEffect(() => {
     dispatch(fetchProducts());
     dispatch(fetchCategories());
-  }, []);
+  }, [dispatch]);
 
   const categoryList = Array.isArray(categories) ? categories : [];
-  const generateRandomColor = () => {
-    // Генерация случайного оттенка (hue) от 0 до 360
-    const hue = Math.floor(Math.random() * 360);
-    // Устанавливаем насыщенность и яркость, чтобы избежать серых и черных оттенков
-    const saturation = Math.floor(Math.random() * 50) + 50; // от 50% до 100%
-    const lightness = Math.floor(Math.random() * 50) + 25; // от 25% до 75%
 
-    const c = ((1 - Math.abs((2 * lightness) / 100 - 1)) * saturation) / 100;
-    const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-    const m = lightness / 100 - c / 2;
-
-    let r = 0,
-      g = 0,
-      b = 0;
-
-    if (hue >= 0 && hue < 60) {
-      r = c;
-      g = x;
-      b = 0;
-    } else if (hue >= 60 && hue < 120) {
-      r = x;
-      g = c;
-      b = 0;
-    } else if (hue >= 120 && hue < 180) {
-      r = 0;
-      g = c;
-      b = x;
-    } else if (hue >= 180 && hue < 240) {
-      r = 0;
-      g = x;
-      b = c;
-    } else if (hue >= 240 && hue < 300) {
-      r = x;
-      g = 0;
-      b = c;
-    } else if (hue >= 300 && hue < 360) {
-      r = c;
-      g = 0;
-      b = x;
-    }
-
-    r = Math.round((r + m) * 255);
-    g = Math.round((g + m) * 255);
-    b = Math.round((b + m) * 255);
-
-    // Преобразование RGB в HEX
-    const rgb = (r << 16) | (g << 8) | b;
-    const hex = `#${(0x1000000 | rgb).toString(16).slice(1)}`;
-
-    // Добавление 50% прозрачности
-    return `${hex}20`; // '80' — это 50% прозрачности в HEX
-  };
-  const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => {
     setRefreshing(true);
     dispatch(fetchProducts());
@@ -87,24 +42,67 @@ const AllProducts = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const clickCategory = (categoryId) => {
-    dispatch(fetchProducts(categoryId));
+  const filterProducts = useCallback(() => {
+    let filtered = products.filter((product) =>
+      product.name.toLowerCase().includes(searchText.toLowerCase())
+    );
+    setFilteredProducts(filtered);
+  }, [products, searchText]);
+
+  useEffect(() => {
+    filterProducts();
+  }, [searchText, filterProducts]);
+
+  const applyFilter = (filters) => {
+    const { selectedCategory, minPrice, maxPrice } = filters;
+    let filtered = products.filter((product) => {
+      return (
+        (selectedCategory ? product.categoryId === selectedCategory : true) &&
+        product.price >= minPrice &&
+        product.price <= maxPrice
+      );
+    });
+    setFilteredProducts(filtered);
+    setFilterVisible(false);
   };
+
+  const toggleFilter = () => setFilterVisible(!filterVisible);
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Заголовок с поиском и кнопкой фильтра */}
       <View style={styles.header}>
         <TextInput
           style={styles.productsSearch}
           placeholder="Поиск"
-          // value={searchText}
-          // onChangeText={(text) => setSearchText(text)}
+          value={searchText}
+          onChangeText={(text) => setSearchText(text)}
         />
-        <TouchableOpacity style={styles.filter}>
+        <TouchableOpacity style={styles.filter} onPress={toggleFilter}>
           <Ionicons name="filter" size={24} color={"#008bd9"} />
         </TouchableOpacity>
       </View>
 
+      {/* Modal для отображения фильтра в полноэкранном режиме */}
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={filterVisible}
+        onRequestClose={() => setFilterVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          {/* Компонент фильтра */}
+          <Filter categories={categories} onApplyFilter={applyFilter} />
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setFilterVisible(false)}
+          >
+            <Text style={styles.closeButtonText}>Закрыть фильтры</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Список категорий */}
       <View style={styles.categories}>
         <View style={styles.categoriesBlock}>
           <Text style={styles.categoryTitle}>Категории</Text>
@@ -122,30 +120,29 @@ const AllProducts = ({ navigation }) => {
           horizontal
           showsHorizontalScrollIndicator={false}
           data={categoryList}
-          keyExtractor={(item, index) => index.toString()}
+          keyExtractor={(item) => item._id}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={[
-                styles.category,
-                { backgroundColor: generateRandomColor() },
-              ]}
-              onPress={() => clickCategory(item._id)}
+              style={styles.category}
+              onPress={() => dispatch(fetchProducts(item._id))}
             >
               <Text style={styles.categoryText}>{item.name}</Text>
             </TouchableOpacity>
           )}
-          contentContainerStyle={styles.categories}
-          ListEmptyComponent={<Text style={styles.noResults}>loading</Text>}
         />
       </View>
 
+      {/* Список продуктов */}
       <ScrollView
         contentContainerStyle={styles.products}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <Products navigation={navigation} />
+        <Products
+          navigation={navigation}
+          products={filteredProducts.length > 0 ? filteredProducts : products}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -172,25 +169,20 @@ const styles = StyleSheet.create({
   filter: {
     marginRight: 10,
   },
-  scrollView: {
-    marginBottom: 10,
-  },
   categories: {
     paddingHorizontal: 10,
   },
   categoryTitle: {
     fontSize: 18,
-    fontWeight: 600,
+    fontWeight: "600",
     marginBottom: 10,
   },
   categoriesBlock: {
-    display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   categoryBtn: {
-    display: "flex",
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 7,
@@ -201,6 +193,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     marginRight: 10,
     marginBottom: 10,
+    backgroundColor: "#008bd930",
   },
   categoryText: {
     fontSize: 18,
@@ -209,11 +202,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 10,
   },
-  noResults: {
-    textAlign: "center",
-    fontSize: 18,
-    color: "#888",
-    marginTop: 20,
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  closeButton: {
+    padding: 10,
+    backgroundColor: "#008bd9",
+    borderRadius: 5,
+    margin: 20,
+    alignItems: "center",
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontSize: 16,
   },
 });
 

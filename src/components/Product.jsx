@@ -11,9 +11,10 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Toast from "react-native-toast-message";
 import Products from "./Products";
+import { addToCart } from "../store/slices/userSlice";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -22,6 +23,12 @@ const Product = ({ navigation }) => {
   const [saved, setSaved] = useState(false);
   const [quantity, setQuantity] = useState(0);
   const [isBuying, setIsBuying] = useState(false);
+
+  const product = useSelector((state) => state.product.activeProduct);
+  const user = useSelector((state) => state.user.user);
+  const totalPrice = parseFloat(product.price) * quantity;
+
+  const dispatch = useDispatch();
 
   const handleSave = () => {
     setSaved(!saved);
@@ -40,6 +47,10 @@ const Product = ({ navigation }) => {
   const handleBuy = () => {
     setIsBuying(true);
     setQuantity(quantity + 1);
+  };
+
+  const addProductToCart = () => {
+    dispatch(addToCart({ userId: user._id, productId: product._id, quantity }));
     Toast.show({
       type: "success",
       position: "top",
@@ -48,10 +59,8 @@ const Product = ({ navigation }) => {
       visibilityTime: 3000,
       autoHide: true,
     });
+    setIsBuying(false);
   };
-
-  const product = useSelector((state) => state.product.activeProduct);
-  const totalPrice = parseFloat(product.price) * quantity;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -113,6 +122,13 @@ const Product = ({ navigation }) => {
                 <Text style={styles.quantityButtonText}>+</Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={styles.buyButton}
+              onPress={addProductToCart}
+            >
+              <Text style={styles.buyButtonText}>Добавить в корзину</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -221,6 +237,7 @@ const styles = StyleSheet.create({
     gap: 20,
     backgroundColor: "#e5e5e5",
     borderRadius: 5,
+    marginBottom: 20,
   },
   quantityButton: {
     backgroundColor: "#008bd9",
@@ -244,6 +261,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 15,
+    width: "100%",
   },
   buyButtonText: {
     color: "#fff",

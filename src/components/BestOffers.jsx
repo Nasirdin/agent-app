@@ -62,7 +62,7 @@ const BestOffers = ({ navigation }) => {
       contentContainerStyle={styles.container}
     >
       {productData.map((product) => (
-        <View key={product.id} style={styles.card}>
+        <TouchableOpacity key={product.id} style={styles.card}>
           <Image source={{ uri: product.image }} style={styles.image} />
           <View style={styles.discountTag}>
             <Text style={styles.discountText}>{product.discount}</Text>
@@ -77,16 +77,16 @@ const BestOffers = ({ navigation }) => {
 
             <Text style={styles.newPrice}>{product.newPrice} сом</Text>
 
-            <TouchableOpacity
+            <View
               style={styles.detailsButton}
               onPress={() =>
                 navigation.navigate("ProductDetails", { productId: product.id })
               }
             >
               <Text style={styles.timer}>{formatTime(timeLeft)}</Text>
-            </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );

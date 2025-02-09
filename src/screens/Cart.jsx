@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,43 +8,42 @@ import {
   Modal,
   Image,
   SafeAreaView,
+  RefreshControl,
 } from "react-native";
 import { Checkbox } from "expo-checkbox";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCart } from "../store/slices/userSlice";
+import { setActiveProduct } from "../store/slices/productSlice";
 
-const Cart = () => {
+const Cart = ({ navigation }) => {
   const [selectedItems, setSelectedItems] = useState([]);
-  const [cartItems, setCartItems] = useState([
-    {
-      id: "1",
-      title: "Товар 1",
-      img: "https://via.placeholder.com/150",
-      quantity: 1,
-      price: 1500,
-      manufacturer: "Кола",
-    },
-    {
-      id: "2",
-      title: "Товар 2",
-      img: "https://via.placeholder.com/150",
-      quantity: 2,
-      price: 2500,
-      manufacturer: "Шоро",
-    },
-    {
-      id: "3",
-      title: "Товар 3",
-      img: "https://via.placeholder.com/150",
-      quantity: 1,
-      price: 1000,
-      manufacturer: "Кола",
-    },
-  ]);
-  const [minOrderAmount, setMinOrderAmount] = useState({
-    Kola: 5000,
-    Shoro: 1000,
-  });
   const [isModalVisible, setModalVisible] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [minOrderAmount, setMinOrderAmount] = useState({});
+  const { cart, user, loading, error } = useSelector((state) => state.user);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (user._id) {
+      dispatch(fetchCart(user._id));
+    }
+  }, [user._id, cart.length]);
+
+  const groupedByOwner = useMemo(() => {
+    if (!Array.isArray(cart)) return {};
+    return cart.reduce((acc, item) => {
+      const ownerName = item.productId?.owner?.name || "Неизвестный продавец";
+      if (!acc[ownerName]) {
+        acc[ownerName] = [];
+      }
+      acc[ownerName].push(item);
+      return acc;
+    }, {});
+  }, [cart]);
+
+  console.log(groupedByOwner);
 
   const handleSelectItem = (id) => {
     setSelectedItems((prevSelected) =>
@@ -60,7 +59,10 @@ const Cart = () => {
   };
 
   const confirmRemoveItem = () => {
-    setCartItems(cartItems.filter((item) => item.id !== itemToRemove));
+    const updatedCart = cart.filter(
+      (item) => item.productId._id !== itemToRemove
+    );
+    dispatch(fetchCart(user._id));
     setModalVisible(false);
     setItemToRemove(null);
   };
@@ -71,83 +73,144 @@ const Cart = () => {
   };
 
   const totalAmount = selectedItems.reduce((total, id) => {
-    const item = cartItems.find((item) => item.id === id);
-    return total + item.price * item.quantity;
+    const item = cart.find((item) => item.productId._id === id);
+    return total + item.productId.price * item.quantity;
   }, 0);
 
-  const groupedByManufacturer = cartItems.reduce((acc, item) => {
-    acc[item.manufacturer] = acc[item.manufacturer] || [];
-    acc[item.manufacturer].push(item);
-    return acc;
-  }, {});
+  const handleProduct = (product) => {
+    dispatch(setActiveProduct(product));
+    navigation.navigate("Product");
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    if (user._id) {
+      dispatch(fetchCart(user._id));
+    }
+    setRefreshing(false);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.wrapper}>
         <Text style={styles.title}>Корзина</Text>
 
-        <ScrollView style={styles.cartList}>
-          {Object.entries(groupedByManufacturer).map(
-            ([manufacturer, items]) => (
-              <View key={manufacturer}>
-                <Text style={styles.manufacturerTitle}>{manufacturer}</Text>
-
-                {items.map((item) => (
-                  <View key={item.id} style={styles.cartItem}>
-                    <View style={styles.itemDetailsLeft}>
-                      <Image
-                        source={{ uri: item.img }}
-                        style={styles.itemImage}
-                      />
-                      <View style={styles.itemText}>
-                        <Text style={styles.itemTitle}>{item.title}</Text>
-                        <Text>Количество: {item.quantity}</Text>
-                        <Text>Цена: {item.price} KGS</Text>
-                        <Text>Производитель: {manufacturer}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.itemDetailsRight}>
-                      <Checkbox
-                        value={selectedItems.includes(item.id)}
-                        onValueChange={() => handleSelectItem(item.id)}
-                      />
-                      <TouchableOpacity
-                        style={styles.removeButton}
-                        onPress={() => handleRemoveItem(item.id)}
-                      >
-                        <Text style={styles.removeButtonText}>Удалить</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )
-          )}
-
-          {totalAmount < minOrderAmount.Kola && totalAmount > 0 && (
-            <Text style={styles.warningText}>
-              Минимальная сумма для производителя "Кола" составляет{" "}
-              {minOrderAmount.Kola} KGS. Добавьте больше товаров или увеличьте
-              количество.
-            </Text>
-          )}
-
-          <Text style={styles.totalAmountText}>
-            Общая сумма: {totalAmount} KGS
-          </Text>
-
-          {/* Кнопка для просмотра большего количества товаров у производителя */}
+        <ScrollView
+          style={styles.cartList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
           <TouchableOpacity style={styles.viewMoreButton}>
             <Text style={styles.viewMoreButtonText}>
               Посмотреть больше товаров
             </Text>
           </TouchableOpacity>
+
+          {/* {Object.entries(groupedByOwner).map(([owner, items], indx) => (
+            <View key={indx}>
+              <Text style={styles.ownerTitle}>{owner}</Text>
+              {items.map((item) => (
+                <TouchableOpacity
+                  key={item.productId._id}
+                  style={styles.cartItem}
+                  onPress={() => handleProduct(item.productId)}
+                >
+                  <View style={styles.itemDetailsLeft}>
+                    <Image
+                      source={{
+                        uri:
+                          item.productId?.images?.[0] ||
+                          "https://via.placeholder.com/100",
+                      }}
+                      style={styles.itemImage}
+                    />
+                    <View style={styles.itemText}>
+                      <Text style={styles.itemTitle}>
+                        {item.productId.name}
+                      </Text>
+                      <Text>Количество: {item.quantity}</Text>
+                      <Text>Цена: {item.productId.price} KGS</Text>
+                      <Text>Производитель: {owner}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.itemDetailsRight}>
+                    <Checkbox
+                      value={selectedItems.includes(item.productId._id)}
+                      onValueChange={() => handleSelectItem(item.productId._id)}
+                      style={styles.checkbox}
+                    />
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => handleRemoveItem(item.productId._id)}
+                    >
+                      <Text style={styles.removeButtonText}>Удалить</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))} */}
+
+          {Object.entries(groupedByOwner).map(([owner, items]) => (
+            <View key={owner}>
+              <Text style={styles.ownerTitle}>{owner}</Text>
+              {items.map((item) => {
+                if (!item.productId) return null; // Проверяем, есть ли productId
+                return (
+                  <TouchableOpacity
+                    key={item._id}
+                    style={styles.cartItem}
+                    onPress={() => handleProduct(item.productId)}
+                  >
+                    <View style={styles.itemDetailsLeft}>
+                      <Image
+                        source={{
+                          uri:
+                            item.productId?.images?.[0] ||
+                            "https://via.placeholder.com/100",
+                        }}
+                        style={styles.itemImage}
+                      />
+                      <View style={styles.itemText}>
+                        <Text style={styles.itemTitle}>
+                          {item.productId?.name || "Без названия"}
+                        </Text>
+                        <Text>Количество: {item.quantity || 0}</Text>
+                        <Text>Цена: {item.productId?.price || 0} KGS</Text>
+                        <Text>Производитель: {owner}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.itemDetailsRight}>
+                      <Checkbox
+                        value={selectedItems.includes(item.productId?._id)}
+                        onValueChange={() =>
+                          handleSelectItem(item.productId?._id)
+                        }
+                        style={styles.checkbox}
+                      />
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => handleRemoveItem(item.productId?._id)}
+                      >
+                        <Text style={styles.removeButtonText}>Удалить</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+
+          <Text style={styles.totalAmountText}>
+            Общая сумма: {totalAmount} KGS
+          </Text>
         </ScrollView>
 
         {selectedItems.length > 0 && (
           <TouchableOpacity
             style={styles.checkoutButton}
-            disabled={totalAmount < minOrderAmount.Kola}
+            disabled={totalAmount < minOrderAmount[selectedItems[0]]}
           >
             <Text style={styles.checkoutButtonText}>Оформить заказ</Text>
           </TouchableOpacity>
@@ -206,7 +269,7 @@ const styles = StyleSheet.create({
   cartList: {
     flex: 1,
   },
-  manufacturerTitle: {
+  ownerTitle: {
     fontSize: 18,
     fontWeight: "600",
     marginVertical: 10,
@@ -251,17 +314,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#f44336",
     borderRadius: 8,
     padding: 10,
-    marginTop: 10,
+    marginTop: 20,
   },
   removeButtonText: {
     color: "#fff",
     fontWeight: "600",
-  },
-  warningText: {
-    color: "#f44336",
-    fontSize: 16,
-    marginTop: 10,
-    textAlign: "center",
   },
   totalAmountText: {
     fontSize: 18,
@@ -332,6 +389,13 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: "#fff",
     fontSize: 16,
+  },
+
+  checkbox: {
+    borderWidth: 2,
+    borderColor: "#008bd9",
+    width: 30,
+    height: 30,
   },
 });
 

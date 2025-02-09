@@ -2,11 +2,16 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { API_URL } from "@env";
 
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  timeout: 10000,
+});
+
 export const fetchCategories = createAsyncThunk(
   "product/fetchCategories",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/categories`);
+      const response = await axiosInstance.get(`/categories`);
       return response.data;
     } catch (error) {
       console.error("Ошибка при запросе:", error);

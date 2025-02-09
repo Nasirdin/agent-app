@@ -23,9 +23,8 @@ const Login = ({ navigation }) => {
         phoneNumber,
         password,
       });
-
+      
       const { accessToken, refreshToken } = response.data;
-
       saveTokens(accessToken, refreshToken);
       navigation.navigate("Main");
     } catch (error) {
