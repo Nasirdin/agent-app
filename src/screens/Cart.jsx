@@ -14,13 +14,17 @@ import { Checkbox } from "expo-checkbox";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCart } from "../store/slices/userSlice";
 import { setActiveProduct } from "../store/slices/productSlice";
+import { API_URL } from "@env";
+import axios from "axios";
+import Toast from "react-native-toast-message";
 
 const Cart = ({ navigation }) => {
   const [selectedItems, setSelectedItems] = useState([]);
+  const [isOrderModalVisible, setOrderModalVisible] = useState(false);
   const [isModalVisible, setModalVisible] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
   const [minOrderAmount, setMinOrderAmount] = useState({});
-  const { cart, user, loading, error } = useSelector((state) => state.user);
+  const { cart, user } = useSelector((state) => state.user);
   const [refreshing, setRefreshing] = useState(false);
 
   const dispatch = useDispatch();
@@ -29,21 +33,17 @@ const Cart = ({ navigation }) => {
     if (user._id) {
       dispatch(fetchCart(user._id));
     }
-  }, [user._id, cart.length]);
+  }, [user._id]);
 
   const groupedByOwner = useMemo(() => {
     if (!Array.isArray(cart)) return {};
     return cart.reduce((acc, item) => {
       const ownerName = item.productId?.owner?.name || "Неизвестный продавец";
-      if (!acc[ownerName]) {
-        acc[ownerName] = [];
-      }
+      if (!acc[ownerName]) acc[ownerName] = [];
       acc[ownerName].push(item);
       return acc;
     }, {});
   }, [cart]);
-
-  console.log(groupedByOwner);
 
   const handleSelectItem = (id) => {
     setSelectedItems((prevSelected) =>
@@ -59,9 +59,6 @@ const Cart = ({ navigation }) => {
   };
 
   const confirmRemoveItem = () => {
-    const updatedCart = cart.filter(
-      (item) => item.productId._id !== itemToRemove
-    );
     dispatch(fetchCart(user._id));
     setModalVisible(false);
     setItemToRemove(null);
@@ -72,9 +69,18 @@ const Cart = ({ navigation }) => {
     setItemToRemove(null);
   };
 
+  const cancelOrder = () => {
+    setOrderModalVisible(false);
+  };
+
+  const confirmOrder = () => {
+    addOrder(); // Call the addOrder function to submit the order
+    setOrderModalVisible(false);
+  };
+
   const totalAmount = selectedItems.reduce((total, id) => {
     const item = cart.find((item) => item.productId._id === id);
-    return total + item.productId.price * item.quantity;
+    return total + (item ? item.productId.price * item.quantity : 0);
   }, 0);
 
   const handleProduct = (product) => {
@@ -88,6 +94,81 @@ const Cart = ({ navigation }) => {
       dispatch(fetchCart(user._id));
     }
     setRefreshing(false);
+  };
+
+  const showToast = (type, message) => {
+    Toast.show({
+      type,
+      position: "top",
+      text1: message,
+      visibilityTime: 3000,
+      autoHide: true,
+    });
+  };
+
+  const addOrder = async () => {
+    try {
+      const selectedProducts = cart.filter((item) =>
+        selectedItems.includes(item.productId._id)
+      );
+
+      if (selectedProducts.length === 0) {
+        showToast("error", "Нет выбранных товаров для оформления заказа.");
+        return;
+      }
+
+      const ordersByOwner = selectedProducts.reduce((acc, item) => {
+        const ownerId = item.productId.owner._id;
+        if (!acc[ownerId]) {
+          acc[ownerId] = [];
+        }
+        acc[ownerId].push(item.productId._id);
+        return acc;
+      }, {});
+
+      for (const [ownerId, products] of Object.entries(ordersByOwner)) {
+        const orderData = {
+          products,
+          customer: user._id,
+          owner: ownerId,
+        };
+
+        const response = await axios.post(API_URL + "/orders", orderData, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.data) {
+          showToast("error", "Ошибка сети");
+          return;
+        }
+
+        showToast("success", "Заказ успешно оформлен");
+
+        const deleteResponse = await axios.delete(
+          API_URL + `/cart/${user._id}/remove-items`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            data: { productIds: products },
+          }
+        );
+
+        if (!deleteResponse.data) {
+          throw new Error(
+            deleteResponse.data.message ||
+              "Ошибка при удалении товаров из корзины"
+          );
+        }
+
+        dispatch(fetchCart(user._id));
+        setSelectedItems([]);
+      }
+    } catch (error) {
+      showToast("error", error.message);
+    }
   };
 
   return (
@@ -107,56 +188,11 @@ const Cart = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
 
-          {/* {Object.entries(groupedByOwner).map(([owner, items], indx) => (
-            <View key={indx}>
-              <Text style={styles.ownerTitle}>{owner}</Text>
-              {items.map((item) => (
-                <TouchableOpacity
-                  key={item.productId._id}
-                  style={styles.cartItem}
-                  onPress={() => handleProduct(item.productId)}
-                >
-                  <View style={styles.itemDetailsLeft}>
-                    <Image
-                      source={{
-                        uri:
-                          item.productId?.images?.[0] ||
-                          "https://via.placeholder.com/100",
-                      }}
-                      style={styles.itemImage}
-                    />
-                    <View style={styles.itemText}>
-                      <Text style={styles.itemTitle}>
-                        {item.productId.name}
-                      </Text>
-                      <Text>Количество: {item.quantity}</Text>
-                      <Text>Цена: {item.productId.price} KGS</Text>
-                      <Text>Производитель: {owner}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.itemDetailsRight}>
-                    <Checkbox
-                      value={selectedItems.includes(item.productId._id)}
-                      onValueChange={() => handleSelectItem(item.productId._id)}
-                      style={styles.checkbox}
-                    />
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveItem(item.productId._id)}
-                    >
-                      <Text style={styles.removeButtonText}>Удалить</Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))} */}
-
           {Object.entries(groupedByOwner).map(([owner, items]) => (
             <View key={owner}>
               <Text style={styles.ownerTitle}>{owner}</Text>
               {items.map((item) => {
-                if (!item.productId) return null; // Проверяем, есть ли productId
+                if (!item.productId) return null;
                 return (
                   <TouchableOpacity
                     key={item._id}
@@ -211,12 +247,12 @@ const Cart = ({ navigation }) => {
           <TouchableOpacity
             style={styles.checkoutButton}
             disabled={totalAmount < minOrderAmount[selectedItems[0]]}
+            onPress={() => setOrderModalVisible(true)}
           >
             <Text style={styles.checkoutButtonText}>Оформить заказ</Text>
           </TouchableOpacity>
         )}
 
-        {/* Модальное окно для подтверждения удаления */}
         <Modal
           visible={isModalVisible}
           animationType="slide"
@@ -239,6 +275,40 @@ const Cart = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.modalButton}
                   onPress={confirmRemoveItem}
+                >
+                  <Text style={styles.modalButtonText}>Подтвердить</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={isOrderModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={cancelOrder}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Подтвердить заказ</Text>
+              <Text style={styles.modalText}>
+                Вы уверены, что хотите оформить заказ на выбранные товары?
+              </Text>
+
+              <Text style={styles.modalTotalAmount}>
+                Общая сумма: {totalAmount} KGS
+              </Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={cancelOrder}
+                >
+                  <Text style={styles.modalButtonText}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={confirmOrder}
                 >
                   <Text style={styles.modalButtonText}>Подтвердить</Text>
                 </TouchableOpacity>
@@ -285,7 +355,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    height: 150, // высота карточки
+    height: 150,
+  },
+  modalTotalAmount: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 15,
+    textAlign: "center",
+    color: "#008bd9",
   },
   itemDetailsLeft: {
     flexDirection: "row",

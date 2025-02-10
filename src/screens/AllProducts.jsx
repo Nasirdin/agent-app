@@ -83,6 +83,8 @@ const AllProducts = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      
+
       {/* Modal для отображения фильтра в полноэкранном режиме */}
       <Modal
         animationType="slide"
