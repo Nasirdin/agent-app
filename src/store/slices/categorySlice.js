@@ -10,13 +10,12 @@ const axiosInstance = axios.create({
 export const fetchCategories = createAsyncThunk(
   "product/fetchCategories",
   async (_, { rejectWithValue }) => {
-    try {
-      const response = await axiosInstance.get(`/categories`);
-      return response.data;
-    } catch (error) {
+    const response = await axiosInstance.get(`/categories`);
+    if (!response.data) {
       console.error("Ошибка при запросе:", error);
       return rejectWithValue(error.response?.data || "Ошибка сервера");
     }
+    return response.data;
   }
 );
 

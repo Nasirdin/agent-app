@@ -4,6 +4,7 @@ import { API_URL } from "@env";
 
 export const refreshAccessToken = async () => {
   const refreshToken = await SecureStore.getItemAsync("refresh_token");
+  console.log(refreshToken);
 
   if (refreshToken) {
     try {

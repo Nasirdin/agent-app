@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,41 +6,62 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchOrders, selectOrder } from "../store/slices/userSlice";
 
 const MyOrders = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState("active");
+  const { orders, user } = useSelector((state) => state.user);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const orders = [
-    {
-      id: "12345",
-      date: "03.01.2025",
-      sender: "Кола",
-      amount: "1500 KGS",
-      status: "В пути",
-    },
-    {
-      id: "67890",
-      date: "01.01.2025",
-      sender: "Шоро",
-      amount: "900 KGS",
-      status: "Доставлено",
-    },
-  ];
+  const onRefresh = () => {
+    setRefreshing(true);
+    if (user && user._id) {
+      dispatch(fetchOrders(user._id));
+    }
+    setRefreshing(false);
+  };
+
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (user && user._id) {
+      dispatch(fetchOrders(user._id));
+    }
+  }, []);
 
   const filteredOrders =
     activeTab === "active"
       ? orders.filter((order) => order.status === "В пути")
       : orders.filter((order) => order.status === "Доставлено");
 
+  function formattingDate(dateInput = new Date()) {
+    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+
+    if (isNaN(date)) {
+      throw new Error("Invalid date format");
+    }
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}-${month}-${year}`;
+  }
+
+  const selectActiveOrder = (order) => {
+    dispatch(selectOrder(order));
+    navigation.navigate("Order");
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Заголовок */}
         <Text style={styles.title}>Мои заказы</Text>
 
-        {/* Вкладки */}
         <View style={styles.tabs}>
           <TouchableOpacity
             style={[styles.tab, activeTab === "active" && styles.activeTab]}
@@ -70,25 +91,36 @@ const MyOrders = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Карточки заказов */}
-        <ScrollView style={styles.orders}>
+        <ScrollView
+          style={styles.orders}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
           {filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
-              <View key={order.id} style={styles.orderCard}>
+              <View key={order._id} style={styles.orderCard}>
                 <View style={styles.orderInfo}>
                   <Ionicons name="cube-outline" size={40} color="#008bd9" />
                   <View style={styles.orderDetails}>
                     <Text style={styles.orderText}>
-                      Отправитель: {order.sender}
+                      Отправитель: {order.owner.name}
                     </Text>
-                    <Text style={styles.orderText}>Дата: {order.date}</Text>
-                    <Text style={styles.orderText}>Код заказа: {order.id}</Text>
+                    <Text style={styles.orderText}>
+                      Дата: {formattingDate(order.createdAt)}
+                    </Text>
+                    <Text style={styles.orderText}>
+                      Код заказа: {order.key}
+                    </Text>
                     <Text style={styles.orderText}>Сумма: {order.amount}</Text>
                   </View>
                 </View>
                 <View style={styles.orderActions}>
                   <Text style={styles.status}>{order.status}</Text>
-                  <TouchableOpacity style={styles.button}>
+                  <TouchableOpacity
+                    style={styles.button}
+                    onPress={() => selectActiveOrder(order)}
+                  >
                     <Text style={styles.buttonText}>Смотреть</Text>
                   </TouchableOpacity>
                 </View>
@@ -96,13 +128,12 @@ const MyOrders = ({ navigation }) => {
             ))
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="list" size={100} color="#999" />
               <Text style={styles.emptyText}>
                 У вас нет завершенных заказов
               </Text>
               <TouchableOpacity
                 style={styles.emptyButton}
-                onPress={() => navigation.navigate("Catalog")}
+                onPress={() => navigation.navigate("AllProducts")}
               >
                 <Text style={styles.emptyButtonText}>Выбрать товары</Text>
               </TouchableOpacity>

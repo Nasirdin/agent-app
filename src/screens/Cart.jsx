@@ -46,6 +46,9 @@ const Cart = ({ navigation }) => {
   }, [cart]);
 
   const handleSelectItem = (id) => {
+    if (!id) {
+      return;
+    }
     setSelectedItems((prevSelected) =>
       prevSelected.includes(id)
         ? prevSelected.filter((item) => item !== id)
@@ -74,7 +77,7 @@ const Cart = ({ navigation }) => {
   };
 
   const confirmOrder = () => {
-    addOrder(); // Call the addOrder function to submit the order
+    addOrder();
     setOrderModalVisible(false);
   };
 
@@ -122,7 +125,10 @@ const Cart = ({ navigation }) => {
         if (!acc[ownerId]) {
           acc[ownerId] = [];
         }
-        acc[ownerId].push(item.productId._id);
+        acc[ownerId].push({
+          productId: item.productId._id,
+          quantity: item.quantity,
+        });
         return acc;
       }, {});
 
@@ -152,7 +158,7 @@ const Cart = ({ navigation }) => {
             headers: {
               "Content-Type": "application/json",
             },
-            data: { productIds: products },
+            data: { productIds: products.map((p) => p.productId) },
           }
         );
 

@@ -10,16 +10,14 @@ const axiosInstance = axios.create({
 export const fetchProducts = createAsyncThunk(
   "product/fetchProducts",
   async (categoryId, { rejectWithValue }) => {
-    try {
-      const response = await axiosInstance.get(`/products`, {
-        params: { category: categoryId },
-      });
-
-      return response.data;
-    } catch (error) {
-      console.error("Ошибка при запросе:", error);
-      return rejectWithValue(error.response?.data || "Ошибка сервера");
+    const response = await axiosInstance.get(`/products`, {
+      params: { category: categoryId },
+    });
+    if (!response.data) {
+      console.log("fetchProducts data is not found!");
+      retrun;
     }
+    return response.data;
   }
 );
 

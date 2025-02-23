@@ -30,18 +30,17 @@ const Home = ({ navigation }) => {
     if (!token) {
       return;
     }
-    try {
-      const response = await axios.get(API_URL + `/users/current-user`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const response = await axios.get(API_URL + `/users/current-user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      const data = response.data;
-      dispatch(setUserData(data));
-    } catch (error) {
-      console.error("Ошибка при запросе: ", error);
+    if (!response.data) {
+      return;
     }
+    const data = response.data;
+    dispatch(setUserData(data));
   };
 
   const onRefresh = () => {
