@@ -36,8 +36,6 @@ const Loading = ({ navigation }) => {
         navigation.replace("Login");
       }
     } catch (error) {
-      console.error("Ошибка проверки токена:", error);
-      Alert.alert("Ошибка", "Не удалось проверить токен. Попробуйте позже.");
       navigation.replace("Login");
     }
   };
@@ -52,10 +50,6 @@ const Loading = ({ navigation }) => {
       await SecureStore.setItemAsync("access_token", accessToken);
       return accessToken;
     } catch (error) {
-      console.error(
-        "Ошибка обновления токена:",
-        error.response?.data || error.message
-      );
       return null;
     }
   };

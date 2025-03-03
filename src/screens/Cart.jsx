@@ -30,10 +30,10 @@ const Cart = ({ navigation }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (user._id) {
-      dispatch(fetchCart(user._id));
+    if (user.id) {
+      dispatch(fetchCart(user.id));
     }
-  }, [user._id]);
+  }, [user.id]);
 
   const groupedByOwner = useMemo(() => {
     if (!Array.isArray(cart)) return {};
@@ -62,7 +62,7 @@ const Cart = ({ navigation }) => {
   };
 
   const confirmRemoveItem = () => {
-    dispatch(fetchCart(user._id));
+    dispatch(fetchCart(user.id));
     setModalVisible(false);
     setItemToRemove(null);
   };
@@ -93,8 +93,8 @@ const Cart = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    if (user._id) {
-      dispatch(fetchCart(user._id));
+    if (user.id) {
+      dispatch(fetchCart(user.id));
     }
     setRefreshing(false);
   };
@@ -135,7 +135,7 @@ const Cart = ({ navigation }) => {
       for (const [ownerId, products] of Object.entries(ordersByOwner)) {
         const orderData = {
           products,
-          customer: user._id,
+          customer: user.id,
           owner: ownerId,
         };
 
@@ -153,7 +153,7 @@ const Cart = ({ navigation }) => {
         showToast("success", "Заказ успешно оформлен");
 
         const deleteResponse = await axios.delete(
-          API_URL + `/cart/${user._id}/remove-items`,
+          API_URL + `/cart/${user.id}/remove-items`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -169,7 +169,7 @@ const Cart = ({ navigation }) => {
           );
         }
 
-        dispatch(fetchCart(user._id));
+        dispatch(fetchCart());
         setSelectedItems([]);
       }
     } catch (error) {

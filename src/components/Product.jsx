@@ -50,7 +50,7 @@ const Product = ({ navigation }) => {
   };
 
   const addProductToCart = () => {
-    dispatch(addToCart({ userId: user._id, productId: product._id, quantity }));
+    dispatch(addToCart({ userId: user.id, productId: product._id, quantity }));
     Toast.show({
       type: "success",
       position: "top",

@@ -30,7 +30,7 @@ const Home = ({ navigation }) => {
     if (!token) {
       return;
     }
-    const response = await axios.get(API_URL + `/users/current-user`, {
+    const response = await axios.get(API_URL + `/users`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -83,8 +83,8 @@ const Home = ({ navigation }) => {
             <Text style={styles.buttonText}>Мои заказы</Text>
           </TouchableOpacity>
         </View>
-        <Discount />
-        <BestOffers />
+        {/* <Discount /> */}
+        {/* <BestOffers /> */}
         <Text style={styles.title}>Новинки</Text>
         <Products navigation={navigation} />
       </ScrollView>

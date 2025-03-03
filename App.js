@@ -17,6 +17,7 @@ import AboutScreen from "./src/screens/AboutScreen";
 import PrivacyPolicyScreen from "./src/screens/PrivacyPolicy";
 import Toast from "react-native-toast-message";
 import Order from "./src/screens/Order";
+import Address from "./src/screens/Address";
 
 const Stack = createStackNavigator();
 
@@ -36,6 +37,7 @@ export default function App() {
           <Stack.Screen name="About" component={AboutScreen} />
           <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
           <Stack.Screen name="Order" component={Order} />
+          <Stack.Screen name="Address" component={Address} />
         </Stack.Navigator>
         <Toast />
       </NavigationContainer>

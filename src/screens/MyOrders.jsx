@@ -19,8 +19,8 @@ const MyOrders = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    if (user && user._id) {
-      dispatch(fetchOrders(user._id));
+    if (user && user.iid) {
+      dispatch(fetchOrders(user.id));
     }
     setRefreshing(false);
   };
@@ -28,8 +28,8 @@ const MyOrders = ({ navigation }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (user && user._id) {
-      dispatch(fetchOrders(user._id));
+    if (user && user.id) {
+      dispatch(fetchOrders(user.id));
     }
   }, []);
 

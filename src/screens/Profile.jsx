@@ -69,7 +69,9 @@ const Profile = ({ navigation }) => {
           />
           <SectionButton
             text="Мои адреса"
-            onPress={() => {}}
+            onPress={() => {
+              navigation.navigate("Address");
+            }}
             icon="location-outline"
           />
         </View>

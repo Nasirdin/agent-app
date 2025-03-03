@@ -43,7 +43,7 @@ const Login = ({ navigation }) => {
 
     try {
       const response = await axios.post(
-        API_URL + "/users/register",
+        API_URL + "/users/",
         formattedData
       );
       navigation.navigate("Login");
