@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,50 +10,41 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchOrders, selectOrder } from "../store/slices/userSlice";
+import { fetchOrders, setActiveOrder } from "../store/slices/orderSlice";
 
 const MyOrders = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState("active");
-  const { orders, user } = useSelector((state) => state.user);
+  const [activeTab, setActiveTab] = useState("new");
+  const { orders } = useSelector((state) => state.order);
   const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    if (user && user.iid) {
-      dispatch(fetchOrders(user.id));
-    }
-    setRefreshing(false);
-  };
-
   const dispatch = useDispatch();
 
+  const statusMapping = {
+    new: "Новый",
+    processing: "В обработке",
+    shipped: "Отправлен",
+    closed: "Закрыт",
+    canceled: "Отменён",
+  };
+
+  const fetchOrderData = useCallback(() => {
+    setRefreshing(true);
+    dispatch(fetchOrders({ status: activeTab })).finally(() =>
+      setRefreshing(false)
+    );
+  }, [dispatch, activeTab]);
+
   useEffect(() => {
-    if (user && user.id) {
-      dispatch(fetchOrders(user.id));
-    }
-  }, []);
+    fetchOrderData();
+  }, [fetchOrderData]);
 
-  const filteredOrders =
-    activeTab === "active"
-      ? orders.filter((order) => order.status === "В пути")
-      : orders.filter((order) => order.status === "Доставлено");
-
-  function formattingDate(dateInput = new Date()) {
-    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
-
-    if (isNaN(date)) {
-      throw new Error("Invalid date format");
-    }
-
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-
-    return `${day}-${month}-${year}`;
-  }
+  const formattingDate = (dateInput) => {
+    const date = new Date(dateInput);
+    if (isNaN(date)) return "Неизвестная дата";
+    return date.toLocaleDateString("ru-RU");
+  };
 
   const selectActiveOrder = (order) => {
-    dispatch(selectOrder(order));
+    dispatch(setActiveOrder(order));
     navigation.navigate("Order");
   };
 
@@ -63,48 +54,48 @@ const MyOrders = ({ navigation }) => {
         <Text style={styles.title}>Мои заказы</Text>
 
         <View style={styles.tabs}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "active" && styles.activeTab]}
-            onPress={() => setActiveTab("active")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "active" && styles.activeTabText,
-              ]}
+          {[
+            { key: "new", label: "Активные" },
+            { key: "shipped", label: "Отправлено" },
+            { key: "closed", label: "История" },
+          ].map(({ key, label }) => (
+            <TouchableOpacity
+              key={key}
+              style={[styles.tab, activeTab === key && styles.activeTab]}
+              onPress={() => setActiveTab(key)}
             >
-              Активные
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "history" && styles.activeTab]}
-            onPress={() => setActiveTab("history")}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "history" && styles.activeTabText,
-              ]}
-            >
-              История
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === key && styles.activeTabText,
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <ScrollView
           style={styles.orders}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={fetchOrderData}
+            />
           }
         >
-          {filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <View key={order._id} style={styles.orderCard}>
+          {orders.length > 0 ? (
+            orders.map((order) => (
+              <View key={order.id} style={styles.orderCard}>
                 <View style={styles.orderInfo}>
                   <Ionicons name="cube-outline" size={40} color="#008bd9" />
                   <View style={styles.orderDetails}>
+                    <Text style={styles.orderAmount}>
+                      Сумма: {order.amount}
+                    </Text>
                     <Text style={styles.orderText}>
-                      Отправитель: {order.owner.name}
+                      Отправитель: {order.owner.companyName}
                     </Text>
                     <Text style={styles.orderText}>
                       Дата: {formattingDate(order.createdAt)}
@@ -112,11 +103,12 @@ const MyOrders = ({ navigation }) => {
                     <Text style={styles.orderText}>
                       Код заказа: {order.key}
                     </Text>
-                    <Text style={styles.orderText}>Сумма: {order.amount}</Text>
                   </View>
                 </View>
                 <View style={styles.orderActions}>
-                  <Text style={styles.status}>{order.status}</Text>
+                  <Text style={styles.status}>
+                    {statusMapping[order.status] || "Неизвестный статус"}
+                  </Text>
                   <TouchableOpacity
                     style={styles.button}
                     onPress={() => selectActiveOrder(order)}
@@ -129,11 +121,11 @@ const MyOrders = ({ navigation }) => {
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                У вас нет завершенных заказов
+                У вас нет заказов в этой категории
               </Text>
               <TouchableOpacity
                 style={styles.emptyButton}
-                onPress={() => navigation.navigate("AllProducts")}
+                onPress={() => navigation.navigate("Products")}
               >
                 <Text style={styles.emptyButtonText}>Выбрать товары</Text>
               </TouchableOpacity>
@@ -167,9 +159,9 @@ const styles = StyleSheet.create({
   },
   tab: {
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    width: 150,
+    width: 120,
     backgroundColor: "#e0e0e0",
   },
   activeTab: {
@@ -179,6 +171,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     textAlign: "center",
+  },
+  orderAmount: {
+    fontSize: 18,
+    color: "#008bd9",
+    fontWeight: 500,
+    marginBottom: 5,
   },
   activeTabText: {
     color: "#fff",
@@ -204,7 +202,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   orderText: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#333",
     marginBottom: 5,
   },
@@ -215,7 +213,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   status: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#008bd9",
     fontWeight: "700",
   },

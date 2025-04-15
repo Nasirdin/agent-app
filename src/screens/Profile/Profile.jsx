@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { clearTokens } from "../helpers";
+import { clearTokens, getToken } from "../../helpers";
+import { API_URL } from "@env";
 import { useSelector } from "react-redux";
+import axios from "axios";
 
 const SectionButton = ({ text, onPress, icon }) => (
   <TouchableOpacity style={styles.sectionButton} onPress={onPress}>
@@ -27,6 +29,7 @@ const TabButton = ({ text, onPress }) => (
 
 const Profile = ({ navigation }) => {
   const [photo, setPhoto] = useState("https://via.placeholder.com/100");
+  const [exp, setExp] = useState([]);
   const user = useSelector((state) => state.user.user);
 
   const handlePhotoChange = () => {
@@ -37,6 +40,30 @@ const Profile = ({ navigation }) => {
     clearTokens();
     navigation.navigate("Login");
   };
+
+  const fetchExpenses = async () => {
+    try {
+      const token = await getToken();
+
+      if (!token) {
+        console.error("Токен не найден");
+        return rejectWithValue("Токен не найден");
+      }
+
+      const res = await axios.get(API_URL + "/orders/user/expenses", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setExp(res.data);
+    } catch (error) {
+      console.error("Error fetching expenses:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -59,14 +86,17 @@ const Profile = ({ navigation }) => {
           <Text style={styles.name}>
             {user.firstName} {user.lastName}
           </Text>
+          <Text style={styles.phonenNumber}>{user.phoneNumber}</Text>
         </View>
 
         <View style={styles.dataSections}>
-          <SectionButton
+          {/* <SectionButton
             text="Мои данные"
-            onPress={() => {}}
+            onPress={() => {
+              navigation.navigate("AboutMe");
+            }}
             icon="person-outline"
-          />
+          /> */}
           <SectionButton
             text="Мои адреса"
             onPress={() => {
@@ -77,7 +107,7 @@ const Profile = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>200 000 сом</Text>
+          <Text style={styles.sectionTitle}>{exp.currentMonth || 0} сом</Text>
           <Text style={styles.sectionText}>расходы за этот месяц</Text>
         </View>
 
@@ -85,16 +115,21 @@ const Profile = ({ navigation }) => {
           <TabButton
             text="Политика конфиденциальности"
             onPress={() => {
-              navigation.replace("PrivacyPolicy");
+              navigation.navigate("PrivacyPolicy");
             }}
           />
-          <TabButton text="Служба поддержки" onPress={() => {}} />
-          <TabButton text="Настройки" onPress={() => {}} />
-          <TabButton text="Правила и положения" onPress={() => {}} />
+          {/* <TabButton text="Служба поддержки" onPress={() => {}} /> */}
+          {/* <TabButton text="Настройки" onPress={() => {}} /> */}
+          <TabButton
+            text="Правила и положения"
+            onPress={() => {
+              navigation.navigate("TermsAndConditions");
+            }}
+          />
           <TabButton
             text="О приложении"
             onPress={() => {
-              navigation.replace("About");
+              navigation.navigate("About");
             }}
           />
         </View>
@@ -117,7 +152,12 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 10,
+  },
+  phonenNumber: {
+    fontSize: 18,
+    color: "#999",
+    fontWeight: 500,
   },
   profileImage: {
     width: 100,
@@ -128,17 +168,18 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontWeight: "600",
+    marginBottom: 5,
   },
   dataSections: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 10,
   },
   sectionButton: {
     backgroundColor: "#008bd9",
     padding: 15,
     borderRadius: 8,
-    width: "48%",
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

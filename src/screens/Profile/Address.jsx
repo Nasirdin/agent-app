@@ -15,36 +15,28 @@ import {
 } from "react-native";
 import { API_URL } from "@env";
 import { Ionicons } from "@expo/vector-icons";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
+import { fetchShops } from "../../store/slices/shopSlice";
+import { getToken } from "../../helpers";
 
 const Address = ({ navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
-  const [addresses, setAddresses] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentAddressIndex, setCurrentAddressIndex] = useState(null);
+  const [formData, setFormData] = useState({
+    region: "",
+    district: "",
+    street: "",
+    shopNumber: "",
+    shopName: "",
+    shopPhoneNumber: "",
+  });
 
-  const [region, setRegion] = useState("");
-  const [district, setDistrict] = useState("");
-  const [village, setVillage] = useState("");
-  const [street, setStreet] = useState("");
-  const [shopNumber, setShopNumber] = useState("");
-  const [shopName, setShopName] = useState("");
-  const [sellerPhoneNumber, setSellerPhoneNumber] = useState("");
+  const { shops } = useSelector((state) => state.shop);
 
-  const { user } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
 
-  // const createDeliveryAddress = async () => {
-  //   const response = axios.post(API_URL + "/address", {
-  //     address: `${region}/${district}/${village}${street}/${shopumber}`,
-  //     phoneNumber: sellerPhoneNumber,
-  //     user: user.id,
-  //   });
-
-  //   console.log(response);
-  // };
-
-  // Закрытие экрана по кнопке "назад"
   const handleBackPress = useCallback(() => {
     navigation.goBack();
     return true;
@@ -57,29 +49,62 @@ const Address = ({ navigation }) => {
     };
   }, [handleBackPress]);
 
-  // Сохранение адреса (добавление / редактирование)
+  useEffect(() => {
+    dispatch(fetchShops());
+  }, [dispatch]);
+
   const handleSave = async () => {
+    const { region, district, street, shopNumber, shopName, shopPhoneNumber } =
+      formData;
+
     if (
       !region ||
       !district ||
       !street ||
       !shopNumber ||
       !shopName ||
-      !sellerPhoneNumber
+      !shopPhoneNumber
     ) {
       Alert.alert("Ошибка", "Заполните все обязательные поля");
       return;
     }
-    const response = await axios.post(`${API_URL}/address/${user.id}`, {
-      address: `${region}/${district}/${street}/${shopNumber}`,
-      phoneNumber: sellerPhoneNumber,
-    });
-    console.log(user.id);
-    console.log("Ответ сервера:", response.data);
-    Alert.alert("Успешно", "Адрес сохранен!");
+
+    try {
+      const token = await getToken();
+      let response;
+
+      if (isEditMode && currentAddressIndex !== null) {
+        const addressId = shops[currentAddressIndex].id;
+        response = await axios.patch(
+          `${API_URL}/shops/${addressId}`,
+          { ...formData },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      } else {
+        response = await axios.post(
+          `${API_URL}/shops`,
+          { ...formData },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      }
+      resetForm();
+      setModalVisible(false);
+      Alert.alert(
+        "Успешно",
+        isEditMode ? "Адрес обновлен!" : "Адрес сохранен!"
+      );
+      resetForm();
+      dispatch(fetchShops());
+    } catch (error) {
+      console.error("Ошибка при сохранении адреса", error);
+      Alert.alert("Ошибка", "Не удалось сохранить адрес");
+    }
   };
 
-  // Удаление адреса
   const handleDelete = (index) => {
     Alert.alert(
       "Удалить адрес?",
@@ -89,79 +114,100 @@ const Address = ({ navigation }) => {
         {
           text: "Удалить",
           onPress: () => {
-            setAddresses((prev) => prev.filter((_, i) => i !== index));
+            const addressId = shops[index].id;
+            deleteAddress(addressId);
           },
         },
       ]
     );
   };
 
-  // Редактирование адреса
+  const deleteAddress = async (addressId) => {
+    try {
+      const token = await getToken();
+      await axios.delete(`${API_URL}/shops/${addressId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      Alert.alert("Успешно", "Адрес удален!");
+      dispatch(fetchShops());
+    } catch (error) {
+      console.error("Ошибка при удалении адреса", error);
+      Alert.alert("Ошибка", "Не удалось удалить адрес");
+    }
+  };
+
   const handleEdit = (index) => {
-    const addressToEdit = addresses[index];
-    setRegion(addressToEdit.region);
-    setDistrict(addressToEdit.district);
-    setVillage(addressToEdit.village);
-    setStreet(addressToEdit.street);
-    setShopNumber(addressToEdit.shopNumber);
-    setShopName(addressToEdit.shopName);
-    setSellerPhoneNumber(addressToEdit.sellerPhoneNumber);
+    const addressToEdit = shops[index];
+    setFormData({
+      region: addressToEdit.region,
+      district: addressToEdit.district,
+      street: addressToEdit.street,
+      shopNumber: addressToEdit.shopNumber,
+      shopName: addressToEdit.shopName,
+      shopPhoneNumber: addressToEdit.shopPhoneNumber,
+    });
     setIsEditMode(true);
     setCurrentAddressIndex(index);
     setModalVisible(true);
   };
 
-  // Очистка формы
   const resetForm = () => {
-    setRegion("");
-    setDistrict("");
-    setVillage("");
-    setStreet("");
-    setShopNumber("");
-    setShopName("");
-    setSellerPhoneNumber("");
+    setFormData({
+      region: "",
+      district: "",
+      street: "",
+      shopNumber: "",
+      shopName: "",
+      shopPhoneNumber: "",
+    });
     setIsEditMode(false);
     setCurrentAddressIndex(null);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{ flex: 1, padding: 15 }}>
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingVertical: 10 }}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#008bd9" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Адреса доставки</Text>
 
         <ScrollView style={styles.addressList}>
-          {addresses.map((address, index) => (
-            <View key={index} style={styles.addressCard}>
-              <Text style={styles.shopTitle}>Магазин: {address.shopName}</Text>
-              <Text style={styles.addressText}>
-                {address.region}, {address.district},{" "}
-                {address.village ? `${address.village},` : ""} {address.street}{" "}
-                {address.shopNumber}
-              </Text>
-              <Text style={styles.phoneText}>
-                Телефон: {address.sellerPhoneNumber}
-              </Text>
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => handleEdit(index)}
-                >
-                  <Text style={styles.editButtonText}>Изменить</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDelete(index)}
-                >
-                  <Text style={styles.deleteButtonText}>Удалить</Text>
-                </TouchableOpacity>
+          {Array.isArray(shops) && shops.length > 0 ? (
+            shops.map((address, index) => (
+              <View key={index} style={styles.addressCard}>
+                <Text style={styles.shopTitle}>
+                  Магазин: {address.shopName}
+                </Text>
+                <Text style={styles.addressText}>
+                  {address.region}, {address.district}, {address.street}{" "}
+                  {address.shopNumber}
+                </Text>
+                <Text style={styles.phoneText}>
+                  Телефон: {address.shopPhoneNumber}
+                </Text>
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => handleEdit(index)}
+                  >
+                    <Text style={styles.editButtonText}>Изменить</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDelete(index)}
+                  >
+                    <Text style={styles.deleteButtonText}>Удалить</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          ) : (
+            <Text style={styles.noAddresses}>Нет доступных адресов</Text>
+          )}
 
           <TouchableOpacity
             style={styles.addButton}
@@ -181,29 +227,41 @@ const Address = ({ navigation }) => {
                   </Text>
 
                   {[
-                    { label: "Область", value: region, setter: setRegion },
-                    { label: "Район", value: district, setter: setDistrict },
                     {
-                      label: "Село (необязательно)",
-                      value: village,
-                      setter: setVillage,
+                      label: "Область",
+                      value: formData.region,
+                      setter: (value) =>
+                        setFormData({ ...formData, region: value }),
                     },
-                    { label: "Улица", value: street, setter: setStreet },
+                    {
+                      label: "Район",
+                      value: formData.district,
+                      setter: (value) =>
+                        setFormData({ ...formData, district: value }),
+                    },
+                    {
+                      label: "Улица",
+                      value: formData.street,
+                      setter: (value) =>
+                        setFormData({ ...formData, street: value }),
+                    },
                     {
                       label: "Номер дома",
-                      value: shopNumber,
-                      setter: setShopNumber,
-                      keyboardType: "numeric",
+                      value: formData.shopNumber,
+                      setter: (value) =>
+                        setFormData({ ...formData, shopNumber: value }),
                     },
                     {
                       label: "Название магазина",
-                      value: shopName,
-                      setter: setShopName,
+                      value: formData.shopName,
+                      setter: (value) =>
+                        setFormData({ ...formData, shopName: value }),
                     },
                     {
                       label: "Номер продавца",
-                      value: sellerPhoneNumber,
-                      setter: setSellerPhoneNumber,
+                      value: formData.shopPhoneNumber,
+                      setter: (value) =>
+                        setFormData({ ...formData, shopPhoneNumber: value }),
                       keyboardType: "phone-pad",
                     },
                   ].map((field, idx) => (
@@ -258,9 +316,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
-  },
-  addressList: {
-    marginTop: 20,
   },
   addressCard: {
     backgroundColor: "#fff",
@@ -324,57 +379,69 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     width: "90%",
   },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 25,
+    marginTop: -25,
+    color: "#333",
+    display: "flex",
+    alignItems: "center",
+    textAlign: "center",
+  },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
-    color: "#008bd9",
+    color: "#333",
     marginBottom: 20,
     textAlign: "center",
   },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 5,
-    color: "#333",
+    fontSize: 16,
+    marginVertical: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#008bd9",
+    borderColor: "#ddd",
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 15,
-    backgroundColor: "#fff",
+    borderRadius: 6,
     fontSize: 16,
   },
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 20,
   },
   cancelButton: {
-    backgroundColor: "#ccc",
+    backgroundColor: "#f44336",
     paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
+    borderRadius: 5,
     flex: 1,
+    alignItems: "center",
     marginRight: 10,
   },
   cancelButtonText: {
-    color: "#333",
-    fontSize: 16,
+    color: "#fff",
   },
   saveButton: {
     backgroundColor: "#008bd9",
     paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
+    borderRadius: 5,
     flex: 1,
+    alignItems: "center",
   },
   saveButtonText: {
     color: "#fff",
-    fontSize: 16,
+  },
+  noAddresses: {
+    fontSize: 18,
+    color: "#555",
+    textAlign: "center",
+    marginVertical: 20,
   },
   backButton: {
-    marginBottom: 10,
+    marginTop: 10,
+    zIndex: 999,
   },
 });
 

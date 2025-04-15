@@ -2,61 +2,81 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
 import { API_URL } from "@env";
+import { getToken } from "../../helpers";
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
 });
+
+const getAuthHeaders = async () => {
+  const token = await getToken();
+  if (!token) throw new Error("Token not found");
+  return { Authorization: `Bearer ${token}` };
+};
 
 export const addToCart = createAsyncThunk(
   "user/addToCart",
-  async ({ userId, productId, quantity }, { rejectWithValue }) => {
-    const response = await axiosInstance.post(`/cart/add`, {
-      userId,
-      productId,
-      quantity,
-    });
-    if (!response.data) {
-      console.error("Ошибка добавления в корзину:", error);
-      return rejectWithValue(error.response?.data || "Ошибка сервера");
+  async ({ productId, quantity }, { rejectWithValue, dispatch }) => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axiosInstance.post(
+        `/cart`,
+        { productId, quantity },
+        { headers }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      return rejectWithValue(error.response?.data || "Server error");
     }
-    return response.data;
   }
 );
 
 export const fetchCart = createAsyncThunk(
   "user/fetchCart",
-  async (userId, { rejectWithValue }) => {
-    const response = await axiosInstance.get(`/cart/${userId}`);
-    if (!response.data) {
-      console.error("Ошибка получения корзины:", error);
-      return rejectWithValue(error.response?.data || "Ошибка сервера");
+  async (_, { rejectWithValue }) => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axiosInstance.get(`/cart`, { headers });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      return rejectWithValue(error.response?.data || "Server error");
     }
-    return response.data;
-  }
-);
-
-export const fetchOrders = createAsyncThunk(
-  "user/fetchOrders",
-  async (userId, { rejectWithValue }) => {
-    const response = await axiosInstance.get(`/orders/user/${userId}`);
-    if (!response.data) {
-      console.error("Ошибка при получении заказов:", error);
-      return rejectWithValue(error.response?.data || "Ошибка сервера");
-    }
-    return response.data;
   }
 );
 
 export const fetchFinishedOrders = createAsyncThunk(
   "user/fetchFinishedOrders",
   async (userId, { rejectWithValue }) => {
-    const response = await axiosInstance.get(`/orders/finish/user/${userId}`);
-    if (!response.data) {
-      console.error("Ошибка при получении заказов:", error);
-      return rejectWithValue(error.response?.data || "Ошибка сервера");
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axiosInstance.get(
+        `/orders/finish/user/${userId}`,
+        { headers }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching finished orders:", error);
+      return rejectWithValue(error.response?.data || "Server error");
     }
-    return response.data;
+  }
+);
+
+export const removeProductInCart = createAsyncThunk(
+  "user/removeProductInCart",
+  async (productId, { rejectWithValue }) => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axiosInstance.delete(`/cart`, {
+        headers,
+        data: { productId },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error remove product:", error);
+      return rejectWithValue(error.response?.data || "Server error");
+    }
   }
 );
 
@@ -66,7 +86,6 @@ const userSlice = createSlice({
     user: null,
     cart: [],
     orders: [],
-    selectedOrder: null,
     finishOrders: [],
     loading: false,
     error: null,
@@ -78,9 +97,6 @@ const userSlice = createSlice({
     clearCart: (state) => {
       state.cart = [];
     },
-    selectOrder: (state, action) => {
-      state.selectedOrder = action.payload;
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -90,7 +106,7 @@ const userSlice = createSlice({
       })
       .addCase(addToCart.fulfilled, (state, action) => {
         state.loading = false;
-        state.cart.push(action.payload);
+        state.cart = [...state.cart, action.payload];
       })
       .addCase(addToCart.rejected, (state, action) => {
         state.loading = false;
@@ -105,18 +121,6 @@ const userSlice = createSlice({
         state.cart = action.payload;
       })
       .addCase(fetchCart.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      .addCase(fetchOrders.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchOrders.fulfilled, (state, action) => {
-        state.loading = false;
-        state.orders = action.payload;
-      })
-      .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -135,5 +139,5 @@ const userSlice = createSlice({
   },
 });
 
-export const { setUserData, clearCart, selectOrder } = userSlice.actions;
+export const { setUserData, clearCart } = userSlice.actions;
 export default userSlice.reducer;

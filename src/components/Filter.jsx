@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -7,38 +7,25 @@ import {
   ScrollView,
   TextInput,
 } from "react-native";
-import DropDownPicker from "react-native-dropdown-picker";
+import { Picker } from "@react-native-picker/picker";
+import { fetchCategories } from "../store/slices/categorySlice";
+import { useDispatch, useSelector } from "react-redux";
 
 const Filter = ({ onApplyFilter }) => {
+  const dispatch = useDispatch();
+  const { categories } = useSelector((state) => state.category);
+
   const [selectedCategory, setSelectedCategory] = useState("");
   const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 });
 
-  const categories = [
-    { _id: "679f960ad8f2770ec524fcef", name: "Фрукты и овощи" },
-    { _id: "679f9616d8f2770ec524fcf1", name: "Молочные продукты" },
-    { _id: "679f961fd8f2770ec524fcf3", name: "Мясо и рыба" },
-    { _id: "679f9627d8f2770ec524fcf5", name: "Хлебобулочные изделия" },
-    { _id: "679f962fd8f2770ec524fcf7", name: "Напитки" },
-    { _id: "679f963ad8f2770ec524fcf9", name: "Замороженные продукты" },
-    { _id: "679f9646d8f2770ec524fcfb", name: "Кондитерские изделия" },
-    { _id: "679f964ed8f2770ec524fcfd", name: "Бакалея" },
-    { _id: "679f9657d8f2770ec524fcff", name: "Здоровое питание" },
-    { _id: "679f9664d8f2770ec524fd01", name: "Продукты для детей" },
-    { _id: "679f9671d8f2770ec524fd03", name: "Алкогольные напитки" },
-    { _id: "679f967bd8f2770ec524fd05", name: "Чай и кофе" },
-    { _id: "679f9693d8f2770ec524fd07", name: "Снеки и закуски" },
-    { _id: "679f969cd8f2770ec524fd09", name: "Косметика и гигиена" },
-    { _id: "679f96a3d8f2770ec524fd0b", name: "Бытовая химия" },
-  ];
-
   useEffect(() => {
-    console.log(selectedCategory);
-  }, [selectedCategory]);
+    dispatch(fetchCategories());
+  }, [dispatch]);
 
   const handlePriceChange = (type, value) => {
     setPriceRange((prevRange) => ({
       ...prevRange,
-      [type]: value,
+      [type]: Number(value) || 0,
     }));
   };
 
@@ -52,7 +39,7 @@ const Filter = ({ onApplyFilter }) => {
 
   const resetFilters = () => {
     setSelectedCategory("");
-    setPriceRange({ min: 0, max: 1000 });
+    setPriceRange({ min: 0, max: 10000 });
   };
 
   return (
@@ -60,43 +47,41 @@ const Filter = ({ onApplyFilter }) => {
       <ScrollView style={styles.filterContainer}>
         <Text style={styles.filterTitle}>Фильтры</Text>
 
-        {/* Категории */}
         <Text style={styles.filterLabel}>Категория</Text>
-        <View>
-          <DropDownPicker
-            items={categories.map((category) => ({
-              label: category.name,
-              value: category._id,
-            }))}
-            defaultValue={selectedCategory}
-            containerStyle={{ height: 40 }}
-            onChangeItem={(item) => setSelectedCategory(item.value)}
-          />
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={selectedCategory}
+            onValueChange={(itemValue) => setSelectedCategory(itemValue)}
+            style={styles.picker}
+          >
+            <Picker.Item label="Выберите категорию" value="" />
+            {categories.map((category) => (
+              <Picker.Item
+                key={category._id}
+                label={category.name}
+                value={category._id}
+              />
+            ))}
+          </Picker>
         </View>
 
-        {/* Цена */}
         <Text style={styles.filterLabel}>Цена (KGS)</Text>
         <View style={styles.priceInputs}>
           <TextInput
             style={styles.input}
             keyboardType="numeric"
             value={priceRange.min.toString()}
-            onChangeText={(value) =>
-              handlePriceChange("min", parseInt(value) || 0)
-            }
+            onChangeText={(value) => handlePriceChange("min", value)}
           />
           <Text style={styles.separator}>—</Text>
           <TextInput
             style={styles.input}
             keyboardType="numeric"
             value={priceRange.max.toString()}
-            onChangeText={(value) =>
-              handlePriceChange("max", parseInt(value) || 0)
-            }
+            onChangeText={(value) => handlePriceChange("max", value)}
           />
         </View>
 
-        {/* Кнопки */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.applyButton} onPress={applyFilter}>
             <Text style={styles.applyButtonText}>Применить</Text>
@@ -128,11 +113,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginVertical: 10,
   },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    backgroundColor: "#f9f9f9",
+  },
   picker: {
     height: 50,
     width: "100%",
-    backgroundColor: "#f0f0f0",
-    borderRadius: 5,
   },
   priceInputs: {
     flexDirection: "row",

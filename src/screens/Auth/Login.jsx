@@ -11,7 +11,7 @@ import {
 import { TextInput } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
-import { saveTokens } from "../helpers";
+import { saveTokens } from "../../helpers";
 import { API_URL } from "@env";
 
 const Login = ({ navigation }) => {
@@ -25,22 +25,29 @@ const Login = ({ navigation }) => {
       return;
     }
 
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const response = await axios.post(API_URL + `/users/login`, {
-      phoneNumber,
-      password,
-    });
-    if (!response.data) {
-      console.log(response);
+      const { data } = await axios.post(`${API_URL}/users/login`, {
+        phoneNumber,
+        password,
+      });
+
+      if (!data?.accessToken || !data?.refreshToken) {
+        throw new Error("Некорректный ответ от сервера");
+      }
+
+      await saveTokens(data.accessToken, data.refreshToken);
+      navigation.navigate("Main");
+    } catch (error) {
+      console.error("Ошибка входа:", error);
+      Alert.alert(
+        "Ошибка",
+        "Не удалось войти. Проверьте данные и попробуйте снова."
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { accessToken, refreshToken } = response.data;
-    saveTokens(accessToken, refreshToken);
-    navigation.navigate("Main");
-    setLoading(false);
   };
 
   return (
@@ -63,7 +70,9 @@ const Login = ({ navigation }) => {
             value={password}
             onChangeText={setPassword}
           />
-          <TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("ForgotPassword")}
+          >
             <Text style={styles.loginForgotPassword}>Забыли пароль?</Text>
           </TouchableOpacity>
           <TouchableOpacity

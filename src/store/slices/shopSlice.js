@@ -3,8 +3,8 @@ import axios from "axios";
 import { API_URL } from "@env";
 import { getToken } from "../../helpers";
 
-export const fetchCategories = createAsyncThunk(
-  "category/fetchCategories",
+export const fetchShops = createAsyncThunk(
+  "shop/fetchShop",
   async (_, { rejectWithValue }) => {
     try {
       const token = await getToken();
@@ -21,7 +21,7 @@ export const fetchCategories = createAsyncThunk(
         },
       });
 
-      const response = await axiosInstance.get(`/categories`);
+      const response = await axiosInstance.get(`/shops`);
 
       if (!response.data) {
         console.error("Нет данных в ответе");
@@ -35,37 +35,32 @@ export const fetchCategories = createAsyncThunk(
     }
   }
 );
-
-export const categorySlice = createSlice({
-  name: "category",
+export const shopSlice = createSlice({
+  name: "shop",
   initialState: {
-    categories: [],
-    activeProduct: null,
+    shops: [],
+    activeShop: null,
     loading: false,
     error: null,
   },
-  reducers: {
-    setActiveProduct: (state, action) => {
-      state.activeProduct = action.payload;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchCategories.pending, (state) => {
+      .addCase(fetchShops.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchCategories.fulfilled, (state, action) => {
+      .addCase(fetchShops.fulfilled, (state, action) => {
         state.loading = false;
-        state.categories = action.payload;
+        state.shops = action.payload;
       })
-      .addCase(fetchCategories.rejected, (state, action) => {
+      .addCase(fetchShops.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
   },
 });
 
-export const {} = categorySlice.actions;
+export const {} = shopSlice.actions;
 
-export default categorySlice.reducer;
+export default shopSlice.reducer;

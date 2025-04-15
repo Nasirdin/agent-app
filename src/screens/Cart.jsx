@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,52 +7,44 @@ import {
   TouchableOpacity,
   Modal,
   Image,
-  SafeAreaView,
   RefreshControl,
+  Platform,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
-import { Checkbox } from "expo-checkbox";
+import Checkbox from "expo-checkbox";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCart } from "../store/slices/userSlice";
+import { fetchCart, removeProductInCart } from "../store/slices/userSlice";
 import { setActiveProduct } from "../store/slices/productSlice";
-import { API_URL } from "@env";
-import axios from "axios";
 import Toast from "react-native-toast-message";
+import { addOrderFunc } from "../store/slices/orderSlice";
+import { useFocusEffect } from "@react-navigation/native";
+import { fetchShops } from "../store/slices/shopSlice";
 
 const Cart = ({ navigation }) => {
   const [selectedItems, setSelectedItems] = useState([]);
-  const [isOrderModalVisible, setOrderModalVisible] = useState(false);
-  const [isModalVisible, setModalVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
-  const [minOrderAmount, setMinOrderAmount] = useState({});
-  const { cart, user } = useSelector((state) => state.user);
+  const [orderModalVisible, setOrderModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
+  const [loading, setLoading] = useState(false);
+  const { cart } = useSelector((state) => state.user);
+  const { shops } = useSelector((state) => state.shop);
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    if (user.id) {
-      dispatch(fetchCart(user.id));
-    }
-  }, [user.id]);
+  useFocusEffect(
+    useCallback(() => {
+      dispatch(fetchCart());
+      dispatch(fetchShops());
+    }, [dispatch])
+  );
 
-  const groupedByOwner = useMemo(() => {
-    if (!Array.isArray(cart)) return {};
-    return cart.reduce((acc, item) => {
-      const ownerName = item.productId?.owner?.name || "Неизвестный продавец";
-      if (!acc[ownerName]) acc[ownerName] = [];
-      acc[ownerName].push(item);
-      return acc;
-    }, {});
-  }, [cart]);
-
-  const handleSelectItem = (id) => {
-    if (!id) {
-      return;
-    }
-    setSelectedItems((prevSelected) =>
-      prevSelected.includes(id)
-        ? prevSelected.filter((item) => item !== id)
-        : [...prevSelected, id]
+  const handleSelectItem = (product) => {
+    setSelectedItems((prev) =>
+      prev.some((item) => item.id === product.id)
+        ? prev.filter((item) => item.id !== product.id)
+        : [...prev, product]
     );
   };
 
@@ -61,220 +53,165 @@ const Cart = ({ navigation }) => {
     setModalVisible(true);
   };
 
-  const confirmRemoveItem = () => {
-    dispatch(fetchCart(user.id));
+  const confirmRemoveItem = async () => {
+    if (!itemToRemove) return;
+    await dispatch(removeProductInCart(itemToRemove));
+    await dispatch(fetchCart());
     setModalVisible(false);
     setItemToRemove(null);
   };
 
-  const cancelRemoveItem = () => {
-    setModalVisible(false);
-    setItemToRemove(null);
-  };
+  const totalAmount = useMemo(
+    () =>
+      selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [selectedItems]
+  );
 
-  const cancelOrder = () => {
-    setOrderModalVisible(false);
-  };
-
-  const confirmOrder = () => {
-    addOrder();
-    setOrderModalVisible(false);
-  };
-
-  const totalAmount = selectedItems.reduce((total, id) => {
-    const item = cart.find((item) => item.productId._id === id);
-    return total + (item ? item.productId.price * item.quantity : 0);
-  }, 0);
-
-  const handleProduct = (product) => {
+  const handleProductPress = (product) => {
     dispatch(setActiveProduct(product));
     navigation.navigate("Product");
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    if (user.id) {
-      dispatch(fetchCart(user.id));
-    }
+    await dispatch(fetchCart());
     setRefreshing(false);
   };
 
   const showToast = (type, message) => {
     Toast.show({
       type,
-      position: "top",
       text1: message,
-      visibilityTime: 3000,
+      position: "top",
       autoHide: true,
+      visibilityTime: 3000,
     });
   };
 
   const addOrder = async () => {
+    if (selectedItems.length === 0) {
+      showToast("error", "Нет выбранных товаров для оформления заказа.");
+      return;
+    }
     try {
-      const selectedProducts = cart.filter((item) =>
-        selectedItems.includes(item.productId._id)
-      );
-
-      if (selectedProducts.length === 0) {
-        showToast("error", "Нет выбранных товаров для оформления заказа.");
-        return;
-      }
-
-      const ordersByOwner = selectedProducts.reduce((acc, item) => {
-        const ownerId = item.productId.owner._id;
-        if (!acc[ownerId]) {
-          acc[ownerId] = [];
-        }
-        acc[ownerId].push({
-          productId: item.productId._id,
-          quantity: item.quantity,
-        });
+      setLoading(true);
+      const orders = selectedItems.reduce((acc, item) => {
+        const ownerId = item.owner.id;
+        if (!acc[ownerId]) acc[ownerId] = [];
+        acc[ownerId].push({ productId: item.id, quantity: item.quantity });
         return acc;
       }, {});
 
-      for (const [ownerId, products] of Object.entries(ordersByOwner)) {
-        const orderData = {
-          products,
-          customer: user.id,
-          owner: ownerId,
-        };
+      await Promise.all(
+        Object.values(orders).map((products) =>
+          dispatch(addOrderFunc({ products, shopId: selectedAddress }))
+        )
+      );
 
-        const response = await axios.post(API_URL + "/orders", orderData, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.data) {
-          showToast("error", "Ошибка сети");
-          return;
-        }
-
-        showToast("success", "Заказ успешно оформлен");
-
-        const deleteResponse = await axios.delete(
-          API_URL + `/cart/${user.id}/remove-items`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-            data: { productIds: products.map((p) => p.productId) },
-          }
-        );
-
-        if (!deleteResponse.data) {
-          throw new Error(
-            deleteResponse.data.message ||
-              "Ошибка при удалении товаров из корзины"
-          );
-        }
-
-        dispatch(fetchCart());
-        setSelectedItems([]);
-      }
+      showToast("success", "Заказ успешно оформлен");
+      setSelectedItems([]);
+      setOrderModalVisible(false);
+      setSelectedAddress(null);
     } catch (error) {
-      showToast("error", error.message);
+      showToast("error", error?.message || "Ошибка при оформлении заказа");
+    } finally {
+      setLoading(false);
     }
   };
+
+  const renderProductItem = (product) => (
+    <TouchableOpacity
+      key={product.id}
+      style={styles.cartItem}
+      onPress={() => handleProductPress(product)}
+    >
+      <View style={styles.itemDetailsLeft}>
+        <Image
+          source={{
+            uri: product.images?.[0] || "https://via.placeholder.com/100",
+          }}
+          style={styles.itemImage}
+        />
+        <View style={styles.itemText}>
+          <Text style={styles.itemTitle}>{product.name || "Без названия"}</Text>
+          <Text>Количество: {product.quantity}</Text>
+          <Text>Цена: {product.price} Сом</Text>
+          <Text>Производитель: {product.owner?.name || "-"}</Text>
+          <Text>Сумма: {product.price * product.quantity} Сом</Text>
+        </View>
+      </View>
+      <View style={styles.itemDetailsRight}>
+        <Checkbox
+          value={selectedItems.some((item) => item.id === product.id)}
+          onValueChange={() => handleSelectItem(product)}
+          style={styles.checkbox}
+        />
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => handleRemoveItem(product.id)}
+        >
+          <Text style={styles.removeButtonText}>Удалить</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.wrapper}>
         <Text style={styles.title}>Корзина</Text>
-
+        {!!totalAmount && (
+          <Text style={styles.totalAmountText}>
+            Общая сумма: {totalAmount} Сом
+          </Text>
+        )}
         <ScrollView
           style={styles.cartList}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          <TouchableOpacity style={styles.viewMoreButton}>
-            <Text style={styles.viewMoreButtonText}>
-              Посмотреть больше товаров
-            </Text>
-          </TouchableOpacity>
-
-          {Object.entries(groupedByOwner).map(([owner, items]) => (
-            <View key={owner}>
-              <Text style={styles.ownerTitle}>{owner}</Text>
-              {items.map((item) => {
-                if (!item.productId) return null;
-                return (
-                  <TouchableOpacity
-                    key={item._id}
-                    style={styles.cartItem}
-                    onPress={() => handleProduct(item.productId)}
-                  >
-                    <View style={styles.itemDetailsLeft}>
-                      <Image
-                        source={{
-                          uri:
-                            item.productId?.images?.[0] ||
-                            "https://via.placeholder.com/100",
-                        }}
-                        style={styles.itemImage}
-                      />
-                      <View style={styles.itemText}>
-                        <Text style={styles.itemTitle}>
-                          {item.productId?.name || "Без названия"}
-                        </Text>
-                        <Text>Количество: {item.quantity || 0}</Text>
-                        <Text>Цена: {item.productId?.price || 0} KGS</Text>
-                        <Text>Производитель: {owner}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.itemDetailsRight}>
-                      <Checkbox
-                        value={selectedItems.includes(item.productId?._id)}
-                        onValueChange={() =>
-                          handleSelectItem(item.productId?._id)
-                        }
-                        style={styles.checkbox}
-                      />
-                      <TouchableOpacity
-                        style={styles.removeButton}
-                        onPress={() => handleRemoveItem(item.productId?._id)}
-                      >
-                        <Text style={styles.removeButtonText}>Удалить</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+          {cart?.owners?.length ? (
+            cart.owners.map((owner) => (
+              <View key={owner.owner}>
+                <Text style={styles.ownerTitle}>{owner.owner}</Text>
+                {owner.products.map(renderProductItem)}
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Ваша корзина пуста</Text>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={() => navigation.navigate("Products")}
+              >
+                <Text style={styles.emptyButtonText}>Выбрать товары</Text>
+              </TouchableOpacity>
             </View>
-          ))}
-
-          <Text style={styles.totalAmountText}>
-            Общая сумма: {totalAmount} KGS
-          </Text>
+          )}
         </ScrollView>
 
-        {selectedItems.length > 0 && (
+        {!!selectedItems.length && (
           <TouchableOpacity
             style={styles.checkoutButton}
-            disabled={totalAmount < minOrderAmount[selectedItems[0]]}
             onPress={() => setOrderModalVisible(true)}
           >
             <Text style={styles.checkoutButtonText}>Оформить заказ</Text>
           </TouchableOpacity>
         )}
 
-        <Modal
-          visible={isModalVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={cancelRemoveItem}
-        >
+        {/* Удаление */}
+        <Modal visible={modalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Подтвердить удаление</Text>
+              <Text style={styles.modalTitle}>Подтвердите удаление</Text>
               <Text style={styles.modalText}>
-                Вы уверены, что хотите удалить этот товар?
+                Вы уверены, что хотите удалить товар?
               </Text>
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={styles.modalButton}
-                  onPress={cancelRemoveItem}
+                  onPress={() => setModalVisible(false)}
                 >
                   <Text style={styles.modalButtonText}>Отмена</Text>
                 </TouchableOpacity>
@@ -282,39 +219,64 @@ const Cart = ({ navigation }) => {
                   style={styles.modalButton}
                   onPress={confirmRemoveItem}
                 >
-                  <Text style={styles.modalButtonText}>Подтвердить</Text>
+                  <Text style={styles.modalButtonText}>Удалить</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
 
-        <Modal
-          visible={isOrderModalVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={cancelOrder}
-        >
+        {/* Подтверждение заказа */}
+        <Modal visible={orderModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Подтвердить заказ</Text>
               <Text style={styles.modalText}>
-                Вы уверены, что хотите оформить заказ на выбранные товары?
+                Оформить заказ на сумму {totalAmount} Сом?
               </Text>
 
-              <Text style={styles.modalTotalAmount}>
-                Общая сумма: {totalAmount} KGS
-              </Text>
+              <Text style={styles.modalTitle}>Выберите адрес доставки:</Text>
+
+              <View style={styles.addressList}>
+                {!shops
+                  ? ""
+                  : shops.map((address) => (
+                      <TouchableOpacity
+                        key={address.id}
+                        style={[
+                          styles.addressItem,
+                          selectedAddress === address.id &&
+                            styles.selectedAddressItem,
+                        ]}
+                        onPress={() => setSelectedAddress(address.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.addressText,
+                            selectedAddress === address.id &&
+                              styles.selectedAddressText,
+                          ]}
+                        >
+                          {address.region}/{address.district}/{address.street}/
+                          {address.shopNumber}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+              </View>
+
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={styles.modalButton}
-                  onPress={cancelOrder}
+                  onPress={() => {
+                    setOrderModalVisible(false);
+                    setSelectedAddress(null);
+                  }}
                 >
                   <Text style={styles.modalButtonText}>Отмена</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={confirmOrder}
+                  style={[styles.modalButton, loading && styles.loadingButton]}
+                  onPress={addOrder}
+                  disabled={loading}
                 >
                   <Text style={styles.modalButtonText}>Подтвердить</Text>
                 </TouchableOpacity>
@@ -331,25 +293,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
-  wrapper: {
-    flex: 1,
-    padding: 10,
-  },
+  wrapper: { flex: 1, padding: 10 },
   title: {
     fontSize: 22,
     fontWeight: "700",
-    marginBottom: 20,
     textAlign: "center",
+    marginBottom: 20,
   },
-  cartList: {
-    flex: 1,
-  },
+  cartList: { flex: 1 },
   ownerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginVertical: 10,
     color: "#008bd9",
+    marginTop: 10,
   },
   cartItem: {
     backgroundColor: "#fff",
@@ -360,125 +318,108 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     flexDirection: "row",
     alignItems: "center",
-    width: "100%",
-    height: 150,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
-  modalTotalAmount: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 15,
-    textAlign: "center",
-    color: "#008bd9",
-  },
-  itemDetailsLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  itemText: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  itemImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginVertical: 5,
-  },
-  itemDetailsRight: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  removeButton: {
-    backgroundColor: "#f44336",
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 20,
-  },
-  removeButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  totalAmountText: {
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 20,
-  },
+  itemDetailsLeft: { flex: 1, flexDirection: "row", alignItems: "center" },
+  itemImage: { width: 60, height: 60, borderRadius: 10 },
+  itemText: { marginLeft: 10, flexShrink: 1 },
+  itemTitle: { fontSize: 16, fontWeight: "600" },
+  itemDetailsRight: { alignItems: "center", gap: 10 },
+  checkbox: { width: 30, height: 30 },
+  removeButton: { backgroundColor: "#ff4f4f", padding: 10, borderRadius: 6 },
+  removeButtonText: { color: "#fff" },
   checkoutButton: {
     backgroundColor: "#008bd9",
     padding: 15,
-    borderRadius: 8,
     marginTop: 20,
-    alignItems: "center",
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  checkoutButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  viewMoreButton: {
-    backgroundColor: "#008bd9",
-    padding: 12,
     borderRadius: 8,
-    marginTop: 10,
     alignItems: "center",
   },
-  viewMoreButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  checkoutButtonText: { color: "#fff", fontSize: 16 },
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
     backgroundColor: "#fff",
     padding: 20,
     borderRadius: 8,
     width: "80%",
+    alignItems: "center",
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
+  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 10 },
   modalText: {
-    fontSize: 16,
+    fontSize: 18,
+    textAlign: "center",
+    fontWeight: "500",
     marginBottom: 20,
+    color: "#008bd9",
   },
   modalButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
+    width: "100%",
   },
   modalButton: {
     backgroundColor: "#008bd9",
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 8,
-    width: "45%",
-    alignItems: "center",
+    marginHorizontal: 10,
   },
-  modalButtonText: {
-    color: "#fff",
-    fontSize: 16,
+  loadingButton: { backgroundColor: "#999" },
+  modalButtonText: { color: "#fff", fontSize: 16 },
+  emptyContainer: { alignItems: "center", marginTop: 100 },
+  emptyText: { fontSize: 16, color: "#999", marginBottom: 20 },
+  emptyButton: {
+    backgroundColor: "#008bd9",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  emptyButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  totalAmountText: {
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 10,
+    paddingBottom: 5,
+    borderBottomColor: "#008bd9",
+    borderBottomWidth: 2,
   },
 
-  checkbox: {
-    borderWidth: 2,
-    borderColor: "#008bd9",
-    width: 30,
-    height: 30,
+  addressList: {
+    width: "100%",
+    marginBottom: 20,
+    gap: 8,
+  },
+  addressItem: {
+    padding: 10,
+    borderRadius: 6,
+    backgroundColor: "#f0f0f0",
+  },
+  selectedAddressItem: {
+    backgroundColor: "#008bd9",
+  },
+  addressText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  selectedAddressText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });
 

@@ -9,50 +9,68 @@ import {
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Discount from "../components/Discount";
+import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
+import { API_URL } from "@env";
 import News from "../components/News";
 import HomeHeader from "../components/HomeHeader";
-import BestOffers from "../components/BestOffers";
 import Products from "../components/Products";
-import { useDispatch, useSelector } from "react-redux";
-import { getToken } from "../helpers";
-import axios from "axios";
+import { checkAndRefreshToken, getToken } from "../helpers";
 import { setUserData } from "../store/slices/userSlice";
-import { API_URL } from "@env";
 import { fetchProducts } from "../store/slices/productSlice";
 
 const Home = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
+  const products = useSelector((state) => state.product.products) || [];
 
   const dispatch = useDispatch();
-  const fetchUserData = async () => {
-    const token = await getToken();
-    if (!token) {
-      return;
-    }
-    const response = await axios.get(API_URL + `/users`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
 
-    if (!response.data) {
-      return;
+  const fetchUserData = async () => {
+    await checkAndRefreshToken();
+    const token = await getToken();
+    if (!token) return;
+
+    try {
+      const response = await axios.get(`${API_URL}/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.data) {
+        dispatch(setUserData(response.data));
+      }
+    } catch (error) {
+      console.error("Ошибка при получении данных пользователя:", error);
     }
-    const data = response.data;
-    dispatch(setUserData(data));
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchUserData();
-    dispatch(fetchProducts());
+    await fetchUserData();
+    dispatch(
+      fetchProducts({
+        searchText: "",
+        limit: 25,
+        offset: 0,
+        random: false,
+        sortBy: "createdAt",
+        order: "DESC",
+      })
+    );
     setRefreshing(false);
   };
 
   useEffect(() => {
     fetchUserData();
-    dispatch(fetchProducts());
+    dispatch(
+      fetchProducts({
+        searchText: "",
+        limit: 25,
+        offset: 0,
+        random: false,
+        sortBy: "createdAt",
+        order: "DESC",
+      })
+    );
   }, [dispatch]);
 
   return (
@@ -69,10 +87,10 @@ const Home = ({ navigation }) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity
             style={[styles.button, styles.blueButton]}
-            onPress={() => navigation.navigate("AllProducts")}
+            onPress={() => navigation.navigate("Favorite")}
           >
-            <Ionicons name="grid" size={35} color="white" />
-            <Text style={styles.buttonText}>Каталог товаров</Text>
+            <Ionicons name="heart" size={35} color="white" />
+            <Text style={styles.buttonText}>Любимые товары</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -83,10 +101,8 @@ const Home = ({ navigation }) => {
             <Text style={styles.buttonText}>Мои заказы</Text>
           </TouchableOpacity>
         </View>
-        {/* <Discount /> */}
-        {/* <BestOffers /> */}
         <Text style={styles.title}>Новинки</Text>
-        <Products navigation={navigation} />
+        <Products navigation={navigation} products={products} />
       </ScrollView>
     </SafeAreaView>
   );

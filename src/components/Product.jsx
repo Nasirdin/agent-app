@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -25,32 +25,34 @@ const Product = ({ navigation }) => {
   const [isBuying, setIsBuying] = useState(false);
 
   const product = useSelector((state) => state.product.activeProduct);
-  const user = useSelector((state) => state.user.user);
-  const totalPrice = parseFloat(product.price) * quantity;
-
   const dispatch = useDispatch();
 
-  const handleSave = () => {
-    setSaved(!saved);
-  };
+  const totalPrice = useMemo(
+    () => parseFloat(product?.price ?? 0) * quantity,
+    [product?.price, quantity]
+  );
 
-  const handleIncreaseQuantity = () => {
-    setQuantity(quantity + 1);
-  };
+  const handleSave = useCallback(() => setSaved((prevState) => !prevState), []);
 
-  const handleDecreaseQuantity = () => {
-    if (quantity > 0) {
-      setQuantity(quantity - 1);
-    }
-  };
+  const handleIncreaseQuantity = useCallback(
+    () => setQuantity((prev) => prev + 1),
+    []
+  );
 
-  const handleBuy = () => {
-    setIsBuying(true);
-    setQuantity(quantity + 1);
-  };
+  const handleDecreaseQuantity = useCallback(
+    (minAmount) => {
+      if (quantity > minAmount) {
+        setQuantity((prev) => prev - 1);
+      }
+    },
+    [quantity]
+  );
 
-  const addProductToCart = () => {
-    dispatch(addToCart({ userId: user.id, productId: product._id, quantity }));
+  const handleBuy = useCallback(() => setIsBuying(true), []);
+
+  const addProductToCart = useCallback(() => {
+    if (!product) return;
+    dispatch(addToCart({ productId: product.id, quantity }));
     Toast.show({
       type: "success",
       position: "top",
@@ -60,44 +62,61 @@ const Product = ({ navigation }) => {
       autoHide: true,
     });
     setIsBuying(false);
-  };
+  }, [dispatch, product, quantity]);
+
+  useEffect(() => {
+    if (product?.minAmount && quantity === 0) {
+      setQuantity(product.minAmount);
+    }
+  }, [product, quantity]);
+
+  if (!product) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={{ textAlign: "center", marginTop: 20 }}>
+          Продукт не найден
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.container}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#008bd9" />
-        </TouchableOpacity>
+        <View style={styles.infoContainer}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#008bd9" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSave}>
+            <Ionicons
+              name={saved ? "heart" : "heart-outline"}
+              size={30}
+              color={saved ? "red" : "#008bd9"}
+            />
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.imageScroll}
         >
-          {product.images.map((image, index) => (
-            <Image key={index} source={{ uri: image }} style={styles.image} />
+          {product?.images?.map((image, index) => (
+            <Image
+              key={`${image}_${index}`}
+              source={{ uri: image }}
+              style={styles.image}
+            />
           ))}
         </ScrollView>
 
-        <View style={styles.infoContainer}>
-          <Text style={styles.soldCount}>Продано: 1200 шт.</Text>
-          <View style={styles.actions}>
-            <TouchableOpacity onPress={handleSave}>
-              <Ionicons
-                name={saved ? "heart" : "heart-outline"}
-                size={30}
-                color={saved ? "red" : "#008bd9"}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <Text style={styles.title}>{product.name}</Text>
+        <Text style={styles.title}>{product?.name ?? "Без названия"}</Text>
 
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>{product.price} сом</Text>
+          <Text style={styles.price}>{product?.price ?? 0} сом</Text>
         </View>
 
         {quantity <= 0 || !isBuying ? (
@@ -109,7 +128,7 @@ const Product = ({ navigation }) => {
             <Text style={styles.totalPrice}>Общая цена: {totalPrice} сом</Text>
             <View style={styles.quantityControls}>
               <TouchableOpacity
-                onPress={handleDecreaseQuantity}
+                onPress={() => handleDecreaseQuantity(product.minAmount)}
                 style={styles.quantityButton}
               >
                 <Text style={styles.quantityButtonText}>-</Text>
@@ -133,14 +152,32 @@ const Product = ({ navigation }) => {
         )}
 
         <View style={styles.minOrderContainer}>
-          <Text style={styles.minOrderText}>Минимальный заказ: 10 шт.</Text>
+          <Text style={styles.minOrderText}>
+            Минимальный заказ: {product.minAmount} шт.
+          </Text>
         </View>
 
         <Text style={styles.category}>
           Категория:{" "}
-          <Text style={styles.categoryName}>{product.category.name}</Text>
+          <Text style={styles.categoryName}>
+            {product?.category?.name ?? "Неизвестно"}
+          </Text>
         </Text>
-        <Text style={styles.description}>{product.description}</Text>
+
+        {!product.promotion ? (
+          ""
+        ) : (
+          <View style={styles.promotion}>
+            <Text style={styles.promotionTitle}>Акция</Text>
+            <Text style={styles.promotionDescription}>
+              {product?.promotionDescription ?? "Нет описания"}
+            </Text>
+          </View>
+        )}
+
+        <Text style={styles.description}>
+          {product?.description ?? "Нет описания"}
+        </Text>
 
         <TouchableOpacity
           style={styles.manufacturerInfo}
@@ -148,13 +185,13 @@ const Product = ({ navigation }) => {
         >
           <View style={styles.manufacturerDetails}>
             <Image
-              source={{
-                uri: "https://via.placeholder.com/80",
-              }}
+              source={{ uri: "https://via.placeholder.com/80" }}
               style={styles.manufacturerLogo}
             />
             <View>
-              <Text style={styles.companyName}>{product.owner.name}</Text>
+              <Text style={styles.companyName}>
+                {product?.owner?.companyName ?? "Неизвестная компания"}
+              </Text>
               <Text style={styles.ownerName}>
                 Входит в топ 5 лучших на Agent
               </Text>
@@ -229,7 +266,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: "#008bd9",
-    marginBottom: 10,
+    marginBottom: 15,
+    textAlign: "center",
   },
   quantityControls: {
     flexDirection: "row",
@@ -307,6 +345,25 @@ const styles = StyleSheet.create({
   categoryName: {
     color: "#000",
   },
+
+  promotion: {
+    backgroundColor: "#ff000015",
+    padding: 10,
+    marginBottom: 5,
+  },
+  promotionTitle: {
+    fontSize: 22,
+    fontWeight: 500,
+    marginBottom: 10,
+    color: "#008bd9",
+  },
+
+  promotionDescription: {
+    fontSize: 16,
+    fontWeight: 500,
+    borderRadius: 8,
+  },
+
   description: {
     fontSize: 16,
     fontWeight: 500,
