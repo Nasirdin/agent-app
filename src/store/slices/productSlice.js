@@ -68,11 +68,53 @@ export const fetchProductsByCategory = createAsyncThunk(
   }
 );
 
+export const toggleFavoriteProducts = createAsyncThunk(
+  "product/addToggleFavoriteProducts",
+  async ({ productId }, { rejectWithValue }) => {
+    try {
+      if (!productId) return rejectWithValue("ID продукта не указан");
+      const token = await getToken();
+      if (!token) return rejectWithValue("Токен не найден");
+      const axiosInstance = axios.create({
+        baseURL: API_URL,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const response = await axiosInstance.post("/products/favorite", {
+        productId,
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Ошибка сервера");
+    }
+  }
+);
+
+export const fetchFavoriteProducts = createAsyncThunk(
+  "product/fetchFavoriteProducts",
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = await getToken();
+      if (!token) return rejectWithValue("Токен не найден");
+
+      const axiosInstance = axios.create({
+        baseURL: API_URL,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const response = await axiosInstance.get(`/products/favorite`)
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Ошибка сервера");
+    }
+  }
+);
+
 export const productSlice = createSlice({
   name: "product",
   initialState: {
     products: [],
     categoryProducts: [],
+    favoriteProducts: [],
     total: 0,
     activeProduct: null,
     loading: false,
@@ -115,7 +157,19 @@ export const productSlice = createSlice({
       .addCase(fetchProducts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-      });
+      })
+      .addCase(fetchFavoriteProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(fetchFavoriteProducts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.favoriteProducts = action.payload;
+      })
+      .addCase(fetchFavoriteProducts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
   },
 });
 

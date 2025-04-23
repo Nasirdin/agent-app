@@ -16,20 +16,23 @@ const HomeHeader = ({ navigation }) => {
         style={styles.headerProfileContainer}
         onPress={() => navigation.navigate("Profile")}
       >
-        <Image
+        <View style={styles.headerIcon}>
+          <Ionicons name="person" size={26} color={"#008bd9"} />
+        </View>
+        {/* <Image
           source={{
             uri: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Flag_of_Kyrgyzstan.svg/1200px-Flag_of_Kyrgyzstan.svg.png",
           }}
           style={styles.headerProfilePhoto}
-        />
+        /> */}
         <Text style={styles.headerUsername}>{user.firstName}</Text>
       </TouchableOpacity>
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.headerNotificationContainer}
         onPress={() => navigation.navigate("Notification")}
       >
         <Ionicons name="notifications" size={24} color={"#008bd9"} />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };
@@ -40,6 +43,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 10,
+  },
+  headerIcon: {
+    borderWidth: 2,
+    borderColor: "#008bd9",
+    padding: 5,
+    borderRadius: "50%",
+    marginRight: 10,
   },
   headerProfileContainer: {
     flexDirection: "row",

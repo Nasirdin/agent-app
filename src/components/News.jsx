@@ -65,7 +65,7 @@ const News = () => {
         {newsData.map((news) => (
           <TouchableOpacity
             key={news.id}
-            onPress={() => openModal(news.image)}
+            // onPress={() => openModal(news.image)}
             style={styles.newsCardWrapper}
           >
             <LinearGradient

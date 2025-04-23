@@ -89,6 +89,10 @@ const Cart = ({ navigation }) => {
   };
 
   const addOrder = async () => {
+    if (!selectedAddress) {
+      showToast("error", "Добавьте адрес доставки");
+      return;
+    }
     if (selectedItems.length === 0) {
       showToast("error", "Нет выбранных товаров для оформления заказа.");
       return;

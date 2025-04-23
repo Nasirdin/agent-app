@@ -7,6 +7,8 @@ import {
   ScrollView,
   SafeAreaView,
   RefreshControl,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
@@ -74,7 +76,8 @@ const Home = ({ navigation }) => {
   }, [dispatch]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <HomeHeader navigation={navigation} />
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
@@ -109,6 +112,11 @@ const Home = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingTop: Platform.OS === "android" ? 5 : 0,
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",

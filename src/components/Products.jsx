@@ -56,15 +56,24 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "48%",
-    height: 300,
+    height: 320,
     backgroundColor: "#fff",
     borderRadius: 16,
+    padding: 10,
+    marginBottom: 10,
+
+    // Тень для iOS
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
-    padding: 10,
-    marginBottom: 10,
+
+    // Тень для Android
+    elevation: 3,
+  },
+  cardContent: {
+    overflow: "hidden",
+    height: 125,
   },
   image: {
     width: "100%",

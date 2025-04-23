@@ -1,21 +1,56 @@
-import React from "react";
-import { Text, StyleSheet, SafeAreaView, View } from "react-native";
+import React, { useEffect, useCallback, useState } from "react";
+import {
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  View,
+  RefreshControl,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import Products from "../components/Products";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchFavoriteProducts } from "../store/slices/productSlice";
 import { Ionicons } from "@expo/vector-icons";
 
 const Favorite = ({ navigation }) => {
-  const savedItems = 1;
+  const dispatch = useDispatch();
+  const { favoriteProducts } = useSelector((state) => state.product);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadFavorites = useCallback(async () => {
+    setRefreshing(true);
+    await dispatch(fetchFavoriteProducts());
+    setRefreshing(false);
+  }, [dispatch]);
+
+  useEffect(() => {
+    loadFavorites();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.wrapper}>
+      {/* Фиксированный header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#008bd9" />
+        </TouchableOpacity>
         <Text style={styles.title}>Избранное</Text>
-        {savedItems > 0 ? (
-          <Products navigation={navigation} />
+        <View></View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={loadFavorites} />
+        }
+      >
+        {favoriteProducts.length > 0 ? (
+          <Products navigation={navigation} products={favoriteProducts} />
         ) : (
           <Text style={styles.emptyText}>Нет сохранённых товаров</Text>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -25,18 +60,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  wrapper: {
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 15,
     paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
-    marginBottom: 15,
-    marginTop: 20,
     color: "#333",
-    display: "flex",
-    alignItems: "center",
-    textAlign: "center",
+  },
+  scrollContent: {
+    paddingHorizontal: 10,
+    paddingBottom: 20,
   },
   emptyText: {
     fontSize: 18,

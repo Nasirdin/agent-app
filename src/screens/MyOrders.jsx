@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
+import { useFocusEffect } from "@react-navigation/native";
 import { fetchOrders, setActiveOrder } from "../store/slices/orderSlice";
 
 const MyOrders = ({ navigation }) => {
@@ -33,9 +34,11 @@ const MyOrders = ({ navigation }) => {
     );
   }, [dispatch, activeTab]);
 
-  useEffect(() => {
-    fetchOrderData();
-  }, [fetchOrderData]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrderData();
+    }, [fetchOrderData])
+  );
 
   const formattingDate = (dateInput) => {
     const date = new Date(dateInput);
@@ -47,6 +50,18 @@ const MyOrders = ({ navigation }) => {
     dispatch(setActiveOrder(order));
     navigation.navigate("Order");
   };
+  useEffect(() => {
+    fetchOrderData();
+  }, [activeTab]);
+
+  const tabs = useMemo(
+    () => [
+      { key: "new", label: "Активные" },
+      { key: "shipped", label: "Отправлено" },
+      { key: "closed", label: "История" },
+    ],
+    []
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -54,11 +69,7 @@ const MyOrders = ({ navigation }) => {
         <Text style={styles.title}>Мои заказы</Text>
 
         <View style={styles.tabs}>
-          {[
-            { key: "new", label: "Активные" },
-            { key: "shipped", label: "Отправлено" },
-            { key: "closed", label: "История" },
-          ].map(({ key, label }) => (
+          {tabs.map(({ key, label }) => (
             <TouchableOpacity
               key={key}
               style={[styles.tab, activeTab === key && styles.activeTab]}
@@ -154,14 +165,14 @@ const styles = StyleSheet.create({
   },
   tabs: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-evenly",
     marginBottom: 20,
   },
   tab: {
     paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 15,
     borderRadius: 8,
-    width: 120,
+    width: "auto",
     backgroundColor: "#e0e0e0",
   },
   activeTab: {

@@ -25,6 +25,8 @@ import TermsAndConditionsScreen from "./src/screens/Profile/TermsAndConditionsSc
 import AboutMe from "./src/screens/Profile/AboutMe";
 import CategoryProducts from "./src/screens/CategoryProducts";
 import Favorite from "./src/screens/Favorite";
+import ContactsScreen from "./src/screens/Profile/Contacts";
+import Owner from "./src/screens/Owner";
 
 const Stack = createStackNavigator();
 
@@ -50,6 +52,7 @@ export default function App() {
           <Stack.Screen name="Product" component={Product} />
           <Stack.Screen name="About" component={AboutScreen} />
           <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+          <Stack.Screen name="Contacts" component={ContactsScreen} />
           <Stack.Screen
             name="TermsAndConditions"
             component={TermsAndConditionsScreen}
@@ -60,6 +63,7 @@ export default function App() {
           <Stack.Screen name="AboutMe" component={AboutMe} />
           <Stack.Screen name="CategoryProducts" component={CategoryProducts} />
           <Stack.Screen name="Favorite" component={Favorite} />
+          <Stack.Screen name="Owner" component={Owner} />
         </Stack.Navigator>
         <Toast />
       </NavigationContainer>

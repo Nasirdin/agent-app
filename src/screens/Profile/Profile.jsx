@@ -76,12 +76,15 @@ const Profile = ({ navigation }) => {
         </TouchableOpacity>
         <View style={styles.profileHeader}>
           <TouchableOpacity onPress={handlePhotoChange}>
-            <Image
+            <View style={styles.profileIcon}>
+              <Ionicons name="person" size={46} color={"#008bd9"} />
+            </View>
+            {/* <Image
               source={{
                 uri: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Flag_of_Kyrgyzstan.svg/1200px-Flag_of_Kyrgyzstan.svg.png",
               }}
               style={styles.profileImage}
-            />
+            /> */}
           </TouchableOpacity>
           <Text style={styles.name}>
             {user.firstName} {user.lastName}
@@ -118,7 +121,7 @@ const Profile = ({ navigation }) => {
               navigation.navigate("PrivacyPolicy");
             }}
           />
-          {/* <TabButton text="Служба поддержки" onPress={() => {}} /> */}
+
           {/* <TabButton text="Настройки" onPress={() => {}} /> */}
           <TabButton
             text="Правила и положения"
@@ -130,6 +133,12 @@ const Profile = ({ navigation }) => {
             text="О приложении"
             onPress={() => {
               navigation.navigate("About");
+            }}
+          />
+          <TabButton
+            text="Связаться с нами"
+            onPress={() => {
+              navigation.navigate("Contacts");
             }}
           />
         </View>
@@ -152,6 +161,13 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: "center",
+    marginBottom: 10,
+  },
+  profileIcon: {
+    borderWidth: 2,
+    borderColor: "#008bd9",
+    padding: 5,
+    borderRadius: "50%",
     marginBottom: 10,
   },
   phonenNumber: {

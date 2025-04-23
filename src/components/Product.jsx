@@ -13,16 +13,21 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
 import Toast from "react-native-toast-message";
-import Products from "./Products";
 import { addToCart } from "../store/slices/userSlice";
+import { API_URL } from "@env";
+import { toggleFavoriteProducts } from "../store/slices/productSlice";
+import { useFocusEffect } from "@react-navigation/native";
+import { getToken } from "../helpers";
+import { isRejectedWithValue } from "@reduxjs/toolkit";
+import axios from "axios";
+import { getOwner } from "../store/slices/ownerSlice";
 
 const screenWidth = Dimensions.get("window").width;
 
 const Product = ({ navigation }) => {
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [quantity, setQuantity] = useState(0);
   const [isBuying, setIsBuying] = useState(false);
+  const [save, setSave] = useState(false);
 
   const product = useSelector((state) => state.product.activeProduct);
   const dispatch = useDispatch();
@@ -32,26 +37,22 @@ const Product = ({ navigation }) => {
     [product?.price, quantity]
   );
 
-  const handleSave = useCallback(() => setSaved((prevState) => !prevState), []);
+  const handleIncreaseQuantity = useCallback(() => {
+    setQuantity((prev) => prev + 1);
+  }, []);
 
-  const handleIncreaseQuantity = useCallback(
-    () => setQuantity((prev) => prev + 1),
-    []
-  );
+  const handleDecreaseQuantity = useCallback(() => {
+    if (quantity > (product?.minAmount || 1)) {
+      setQuantity((prev) => prev - 1);
+    }
+  }, [quantity, product?.minAmount]);
 
-  const handleDecreaseQuantity = useCallback(
-    (minAmount) => {
-      if (quantity > minAmount) {
-        setQuantity((prev) => prev - 1);
-      }
-    },
-    [quantity]
-  );
-
-  const handleBuy = useCallback(() => setIsBuying(true), []);
+  const handleBuy = useCallback(() => {
+    setIsBuying(true);
+  }, []);
 
   const addProductToCart = useCallback(() => {
-    if (!product) return;
+    if (!product || quantity <= 0) return;
     dispatch(addToCart({ productId: product.id, quantity }));
     Toast.show({
       type: "success",
@@ -64,11 +65,43 @@ const Product = ({ navigation }) => {
     setIsBuying(false);
   }, [dispatch, product, quantity]);
 
+  const toogleFavoriteProduct = () => {
+    dispatch(toggleFavoriteProducts({ productId: product.id }));
+    setSave(!save);
+  };
+
   useEffect(() => {
     if (product?.minAmount && quantity === 0) {
       setQuantity(product.minAmount);
     }
-  }, [product, quantity]);
+  }, [product]);
+
+  const getFavoriteProduct = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return isRejectedWithValue("Токен не найден");
+      const axiosInstance = axios.create({
+        baseURL: API_URL,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const response = await axiosInstance.get(`products/favoriteProduct`, {
+        params: { productId: product.id },
+      });
+      if (response.data !== null) {
+        setSave(true);
+      } else {
+        setSave(false);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      getFavoriteProduct();
+    }, [product?.id])
+  );
 
   if (!product) {
     return (
@@ -80,6 +113,11 @@ const Product = ({ navigation }) => {
     );
   }
 
+  const handleOwnerBtn = (ownerId) => {
+    dispatch(getOwner(ownerId));
+    navigation.navigate("Owner");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.container}>
@@ -90,11 +128,11 @@ const Product = ({ navigation }) => {
           >
             <Ionicons name="arrow-back" size={24} color="#008bd9" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleSave}>
+          <TouchableOpacity onPress={toogleFavoriteProduct}>
             <Ionicons
-              name={saved ? "heart" : "heart-outline"}
+              name={save ? "heart" : "heart-outline"}
               size={30}
-              color={saved ? "red" : "#008bd9"}
+              color={save ? "red" : "#008bd9"}
             />
           </TouchableOpacity>
         </View>
@@ -119,7 +157,7 @@ const Product = ({ navigation }) => {
           <Text style={styles.price}>{product?.price ?? 0} сом</Text>
         </View>
 
-        {quantity <= 0 || !isBuying ? (
+        {!isBuying ? (
           <TouchableOpacity style={styles.buyButton} onPress={handleBuy}>
             <Text style={styles.buyButtonText}>Купить</Text>
           </TouchableOpacity>
@@ -128,7 +166,7 @@ const Product = ({ navigation }) => {
             <Text style={styles.totalPrice}>Общая цена: {totalPrice} сом</Text>
             <View style={styles.quantityControls}>
               <TouchableOpacity
-                onPress={() => handleDecreaseQuantity(product.minAmount)}
+                onPress={handleDecreaseQuantity}
                 style={styles.quantityButton}
               >
                 <Text style={styles.quantityButtonText}>-</Text>
@@ -164,9 +202,7 @@ const Product = ({ navigation }) => {
           </Text>
         </Text>
 
-        {!product.promotion ? (
-          ""
-        ) : (
+        {product.promotion && (
           <View style={styles.promotion}>
             <Text style={styles.promotionTitle}>Акция</Text>
             <Text style={styles.promotionDescription}>
@@ -181,27 +217,25 @@ const Product = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.manufacturerInfo}
-          onPress={() => navigation.navigate("Profile")}
+          onPress={() => handleOwnerBtn(product?.owner.id)}
         >
           <View style={styles.manufacturerDetails}>
-            <Image
-              source={{ uri: "https://via.placeholder.com/80" }}
-              style={styles.manufacturerLogo}
-            />
+            <View style={styles.manufacturerIcon}>
+              <Ionicons name="storefront-outline" size={32} color={"#008bd9"} />
+            </View>
             <View>
               <Text style={styles.companyName}>
                 {product?.owner?.companyName ?? "Неизвестная компания"}
               </Text>
-              <Text style={styles.ownerName}>
+              {/* <Text style={styles.ownerName}>
                 Входит в топ 5 лучших на Agent
-              </Text>
+              </Text> */}
             </View>
           </View>
         </TouchableOpacity>
 
-        <Text style={styles.similarTitle}>Похожие товары</Text>
-
-        <Products navigation={navigation} />
+        {/* <Text style={styles.similarTitle}>Похожие товары</Text>
+        <Products navigation={navigation} /> */}
       </ScrollView>
 
       <Toast />
@@ -212,7 +246,7 @@ const Product = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
     padding: Platform.OS === "android" ? 5 : 10,
   },
   imageScroll: {
@@ -235,20 +269,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 10,
   },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 10,
-    gap: 10,
-  },
-  soldCount: {
-    fontSize: 14,
-    color: "#555",
-  },
   priceContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 10,
   },
   price: {
@@ -256,9 +279,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#008bd9",
   },
+  buyButton: {
+    backgroundColor: "#008bd9",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    width: "100%",
+  },
+  buyButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   quantityContainer: {
-    flexDirection: "column",
-    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 10,
   },
@@ -267,7 +301,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#008bd9",
     marginBottom: 15,
-    textAlign: "center",
   },
   quantityControls: {
     flexDirection: "row",
@@ -294,58 +327,26 @@ const styles = StyleSheet.create({
     width: 50,
     textAlign: "center",
   },
-  buyButton: {
-    backgroundColor: "#008bd9",
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
-    width: "100%",
-  },
-  buyButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-    textAlign: "center",
-  },
   minOrderContainer: {
     backgroundColor: "#FFF3E1",
     padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
     borderRadius: 10,
+    marginBottom: 20,
   },
   minOrderText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FF7F32",
   },
-  manufacturerInfo: {
-    marginBottom: 20,
-  },
-  manufacturerDetails: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    padding: 10,
-    backgroundColor: "#008bd910",
-  },
-  manufacturerLogo: {
-    width: 70,
-    height: 70,
-    borderRadius: 40,
-    marginRight: 15,
-    backgroundColor: "#008bd935",
-  },
   category: {
     marginBottom: 15,
     fontSize: 16,
-    fontWeight: 500,
+    fontWeight: "500",
     color: "#666",
   },
   categoryName: {
     color: "#000",
   },
-
   promotion: {
     backgroundColor: "#ff000015",
     padding: 10,
@@ -353,24 +354,44 @@ const styles = StyleSheet.create({
   },
   promotionTitle: {
     fontSize: 22,
-    fontWeight: 500,
+    fontWeight: "500",
     marginBottom: 10,
     color: "#008bd9",
   },
-
   promotionDescription: {
     fontSize: 16,
-    fontWeight: 500,
-    borderRadius: 8,
+    fontWeight: "500",
   },
-
   description: {
     fontSize: 16,
-    fontWeight: 500,
+    fontWeight: "500",
     marginBottom: 15,
     backgroundColor: "#99999915",
     padding: 10,
     borderRadius: 8,
+  },
+  manufacturerInfo: {
+    marginBottom: 20,
+  },
+  manufacturerDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: "#008bd910",
+  },
+  manufacturerIcon: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#008bd9",
+    borderRadius: "50%",
+    marginRight: 10,
+  },
+  manufacturerLogo: {
+    width: 70,
+    height: 70,
+    borderRadius: 40,
+    marginRight: 15,
+    backgroundColor: "#008bd935",
   },
   companyName: {
     fontSize: 16,
